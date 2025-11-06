@@ -3,6 +3,7 @@ from .chat_header import ChatHeader
 from .message_area import MessageArea
 from .message_input import MessageInput
 from utils.socket_client import client
+from design_tokens import Colors, Spacing, Layout
 from typing import Dict, Any, Optional
 
 class ChatRoomComponent:
@@ -22,15 +23,20 @@ class ChatRoomComponent:
         self._setup_message_handling()
 
     def _create_ui(self):
-        """Create the complete chat room UI"""
+        """Create the complete chat room UI with design system styling"""
         # Main container with full height
-        with ui.column().classes('h-full w-full bg-gray-50'):
+        with ui.column().classes('h-full w-full').style(
+            f'background-color: {Colors.WHITE}; '
+            f'display: flex; flex-direction: column; height: 100vh;'
+        ):
             # Fixed header at top
             self.header = ChatHeader(self.username, self.on_back_click)
             self.header.header_ui()
 
             # Message area takes remaining space (full width)
-            with ui.column().classes('flex-grow overflow-hidden w-full'):
+            with ui.column().classes('flex-grow overflow-hidden w-full').style(
+                f'flex: 1; overflow: hidden; background-color: {Colors.WHITE};'
+            ):
                 self.message_area.message_ui()
 
             # Fixed input at bottom

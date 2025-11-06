@@ -1,4 +1,5 @@
 from nicegui import ui
+from design_tokens import Colors, Typography, Spacing, BorderRadius, Borders, Layout
 
 class ChatHeader:
     def __init__(self, username: str, on_back_click=None):
@@ -14,10 +15,44 @@ class ChatHeader:
         # Don't render immediately - let the layout control when to render
 
     def _render_header(self):
-        """Render the header"""
-        with ui.row().classes('justify-between items-center p-4 bg-gray-100 w-full'):
-            ui.label(f'Chat de {self.username}').classes('text-xl font-semibold')
-            ui.button('Voltar', on_click=self.on_back_click or (lambda: ui.navigate.to('/'))).props('outline round dense')
+        """Render the header with design system styling"""
+        with ui.row().classes('justify-between items-center w-full').style(
+            f'background-color: {Colors.WHITE}; '
+            f'border-bottom: 1px solid {Colors.BORDER}; '
+            f'padding: {Spacing.LG} {Spacing.XXL}; '
+            f'height: {Layout.HEADER_HEIGHT}; '
+            f'align-items: center; '
+            f'box-shadow: {Colors.MUTED};'
+        ):
+            # Title
+            title = ui.label(f'Chat de {self.username}').classes('text-xl font-semibold').style(
+                f'color: {Colors.DARK_GRAY}; '
+                f'font-size: 16px; '
+                f'font-weight: 500;'
+            )
+            
+            # Back button
+            back_btn = ui.button('← Voltar').style(
+                f'background-color: transparent; '
+                f'color: {Colors.PRIMARY}; '
+                f'border: none; '
+                f'padding: {Spacing.SM} {Spacing.LG}; '
+                f'border-radius: {BorderRadius.MEDIUM}; '
+                f'cursor: pointer; '
+                f'font-size: {Typography.Size.BODY}; '
+                f'font-weight: 500; '
+                f'transition: all 150ms ease-in-out;'
+            )
+            
+            back_btn.on('click', self.on_back_click or (lambda: ui.navigate.to('/')))
+            
+            # Hover effect
+            back_btn.on('mouseenter', lambda: back_btn.style(
+                f'background-color: {Colors.LIGHT_GRAY}; color: {Colors.PRIMARY};'
+            ))
+            back_btn.on('mouseleave', lambda: back_btn.style(
+                f'background-color: transparent; color: {Colors.PRIMARY};'
+            ))
 
     def update_username(self, username: str):
         """Update the username and refresh the header"""

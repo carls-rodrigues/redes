@@ -1,5 +1,6 @@
 from nicegui import ui
 from typing import List, Dict, Any
+from design_tokens import Colors, Typography, Spacing, BorderRadius, Shadows
 
 class MessageArea:
     def __init__(self, user_id: str):
@@ -16,10 +17,15 @@ class MessageArea:
         # Don't render immediately - let the layout control when to render
 
     def _render_messages(self):
-        """Internal method to render all messages"""
-        with ui.column().classes('w-full h-full p-4 overflow-y-auto bg-gray-50 message-container scroll-smooth'):
+        """Internal method to render all messages with design system styling"""
+        with ui.column().classes('w-full h-full p-4 overflow-y-auto message-container scroll-smooth').style(
+            f'background-color: {Colors.WHITE}; '
+            f'padding: {Spacing.LG}; '
+        ):
             if not self.messages:
-                ui.label('No messages yet').classes('text-center text-gray-500 py-8')
+                ui.label('Nenhuma mensagem ainda').classes('text-center py-8').style(
+                    f'color: {Colors.MEDIUM_GRAY}; '
+                )
                 return
 
             for msg_data in self.messages:
@@ -29,18 +35,47 @@ class MessageArea:
             ui.run_javascript('setTimeout(() => { const el = document.querySelector(".message-container"); if (el) el.scrollTop = el.scrollHeight; }, 100);')
 
     def _render_single_message(self, message_data: Dict[str, Any]):
-        """Render a single message"""
+        """Render a single message with design system styling"""
         sent = str(message_data.get("sender_id")) == str(self.user_id)
         name = "Você" if sent else message_data.get("sender_username", "Unknown")
         text = message_data.get("content", "")
+        timestamp = message_data.get("timestamp", "")
 
-        with ui.row().classes('w-full justify-end mb-2') if sent else ui.row().classes('w-full justify-start mb-2'):
-            with ui.column().classes('items-end') if sent else ui.column().classes('items-start'):
-                ui.label(name).classes('text-xs text-gray-500')
-                if sent:
-                    ui.label(text).classes('bg-blue-500 text-white p-2 rounded-lg max-w-xs break-words')
-                else:
-                    ui.label(text).classes('bg-gray-200 p-2 rounded-lg max-w-xs break-words')
+        with ui.row().classes(f'w-full gap-3 py-2 {"flex-row-reverse" if sent else ""}'):
+            # Avatar
+            avatar_bg = Colors.PRIMARY if sent else Colors.SECONDARY
+            avatar_fg = Colors.PRIMARY_FOREGROUND if sent else Colors.PRIMARY
+            
+            with ui.element('div').classes('w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center') as avatar:
+                avatar.style(
+                    f'background-color: {avatar_bg}; '
+                    f'display: flex; align-items: center; justify-content: center; '
+                    f'flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;'
+                )
+                avatar_label = ui.label(name[0].upper() if name else 'U').classes('text-xs font-semibold')
+                avatar_label.style(f'color: {avatar_fg}; font-weight: 600;')
+            
+            # Message content container
+            with ui.column().classes(f'{"items-end" if sent else "items-start"} gap-1 flex-grow'):
+                # Message bubble
+                message_bg = Colors.SECONDARY if sent else Colors.LIGHT_GRAY
+                message_fg = Colors.DARK_GRAY
+                
+                with ui.element('div').classes('px-4 py-3 rounded-2xl max-w-xs break-words') as bubble:
+                    bubble.style(
+                        f'background-color: {message_bg}; '
+                        f'color: {message_fg}; '
+                        f'border-radius: {BorderRadius.EXTRA_LARGE}; '
+                        f'padding: {Spacing.MD} {Spacing.LG}; '
+                        f'box-shadow: {Shadows.SUBTLE};'
+                    )
+                    message_label = ui.label(text).classes('text-sm leading-relaxed')
+                    message_label.style(f'color: {message_fg}; line-height: 1.5;')
+                
+                # Timestamp
+                if timestamp:
+                    ts_label = ui.label(timestamp).classes('text-xs')
+                    ts_label.style(f'color: {Colors.MEDIUM_GRAY}; font-size: 11px;')
 
     def add_message(self, message_data: Dict[str, Any]):
         """Add a message and refresh the UI"""

@@ -1,5 +1,6 @@
 from nicegui import ui
 from typing import Callable
+from design_tokens import Colors, Typography, Spacing, BorderRadius, Shadows
 
 class MessageInput:
     def __init__(self, on_send: Callable[[str], None]):
@@ -15,11 +16,50 @@ class MessageInput:
         # Don't render immediately - let the layout control when to render
 
     def _create_ui(self):
-        """Create the input UI"""
-        with ui.row().classes("w-full p-4 bg-gray-50 rounded-b-lg"):
-            self.input_field = ui.input(self.placeholder).props("outlined").classes("flex-grow")
+        """Create the input UI with design system styling"""
+        with ui.row().classes("w-full gap-3 p-4").style(
+            f'background-color: {Colors.LIGHT_GRAY}; '
+            f'padding: {Spacing.LG}; '
+            f'border-top: 1px solid {Colors.BORDER}; '
+            f'border-radius: 0 0 8px 8px;'
+        ):
+            # Input field
+            self.input_field = ui.input(self.placeholder).props("outlined").classes("flex-grow").style(
+                f'background-color: {Colors.WHITE}; '
+                f'color: {Colors.DARK_GRAY}; '
+                f'border: 1px solid {Colors.BORDER}; '
+                f'border-radius: {BorderRadius.PILL}; '
+                f'padding: {Spacing.MD} {Spacing.LG}; '
+                f'font-size: {Typography.Size.BODY}; '
+            )
+            
+            # Styling the input's placeholder
+            self.input_field.style(
+                f'--webkit-autofill-bg: {Colors.WHITE}; '
+                f'color: {Colors.DARK_GRAY};'
+            )
+            
             self.input_field.on('keydown.enter', lambda: self._send_message())
-            ui.button("Enviar", on_click=self._send_message).classes("bg-blue-500 text-white")
+            
+            # Send button
+            send_btn = ui.button("Enviar", on_click=self._send_message).style(
+                f'background-color: {Colors.PRIMARY}; '
+                f'color: {Colors.PRIMARY_FOREGROUND}; '
+                f'border: none; '
+                f'border-radius: {BorderRadius.MEDIUM}; '
+                f'padding: {Spacing.SM} {Spacing.LG}; '
+                f'font-weight: 600; '
+                f'cursor: pointer; '
+                f'transition: all 150ms ease-in-out; '
+            )
+            
+            # Hover effect
+            send_btn.on('mouseenter', lambda: send_btn.style(
+                f'background-color: #2E3CB5; opacity: 0.9;'
+            ))
+            send_btn.on('mouseleave', lambda: send_btn.style(
+                f'background-color: {Colors.PRIMARY}; opacity: 1;'
+            ))
 
     def _send_message(self):
         """Send the message and clear input"""

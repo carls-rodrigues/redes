@@ -1,0 +1,264 @@
+{
+  "designSystem": {
+    "metadata": {
+      "name": "Modern Chat Interface Design System",
+      "type": "Conversational UI",
+      "style": "Clean, minimalist, card-based interface"
+    },
+    "colorPalette": {
+      "primary": {
+        "main": "#3B4FE4",
+        "description": "Deep royal blue - used for primary actions, headers, and brand elements"
+      },
+      "secondary": {
+        "light": "#E8EAFF",
+        "description": "Very light blue/lavender - used for message bubbles and subtle backgrounds"
+      },
+      "neutral": {
+        "white": "#FFFFFF",
+        "lightGray": "#F5F5F7",
+        "mediumGray": "#8E8E93",
+        "darkGray": "#1C1C1E",
+        "description": "Gray scale for text, backgrounds, and borders"
+      },
+      "accent": {
+        "yellow": "#FFD60A",
+        "description": "Bright yellow for badges and highlights"
+      }
+    },
+    "typography": {
+      "fontFamily": "Sans-serif system font (likely SF Pro, Inter, or similar modern sans)",
+      "hierarchy": {
+        "messageText": {
+          "size": "14-15px",
+          "weight": "400",
+          "lineHeight": "1.5",
+          "color": "darkGray"
+        },
+        "conversationTitle": {
+          "size": "13-14px",
+          "weight": "500",
+          "color": "darkGray"
+        },
+        "conversationPreview": {
+          "size": "12px",
+          "weight": "400",
+          "color": "mediumGray",
+          "style": "truncated with ellipsis"
+        },
+        "timestamp": {
+          "size": "11px",
+          "weight": "400",
+          "color": "mediumGray"
+        },
+        "sectionLabel": {
+          "size": "11px",
+          "weight": "600",
+          "color": "mediumGray",
+          "transform": "uppercase",
+          "letterSpacing": "0.5px"
+        }
+      }
+    },
+    "layout": {
+      "structure": "Three-column layout",
+      "columns": {
+        "sidebar": {
+          "width": "60-70px",
+          "background": "primary blue",
+          "content": "Icon navigation",
+          "position": "fixed left"
+        },
+        "conversationList": {
+          "width": "280-320px",
+          "background": "light gray",
+          "content": "Scrollable list of conversations",
+          "position": "left panel"
+        },
+        "mainChat": {
+          "width": "flexible/remaining space",
+          "background": "white",
+          "content": "Active conversation",
+          "position": "main content area"
+        }
+      },
+      "spacing": {
+        "sidebarIconPadding": "12-16px vertical",
+        "conversationCardPadding": "12-16px",
+        "conversationCardGap": "8px",
+        "messageVerticalSpacing": "16-20px",
+        "containerPadding": "20-24px"
+      }
+    },
+    "components": {
+      "navigationSidebar": {
+        "style": "Vertical icon bar",
+        "background": "primary blue",
+        "iconSize": "24px",
+        "iconColor": "white with reduced opacity when inactive",
+        "iconActiveState": "full white opacity",
+        "elements": [
+          "Brand logo/icon (top)",
+          "Navigation icons (stacked vertically)",
+          "User profile avatar (bottom)"
+        ]
+      },
+      "conversationCard": {
+        "shape": "Rounded rectangle",
+        "borderRadius": "12px",
+        "background": "white",
+        "padding": "12-16px",
+        "shadow": "subtle, 0 1px 3px rgba(0,0,0,0.1)",
+        "hoverState": "slight shadow increase",
+        "structure": [
+          "Title (bold, 13-14px)",
+          "Preview text (gray, 12px, truncated)",
+          "Timestamp (top right, gray, 11px)",
+          "Optional badge (yellow with icon/text)"
+        ]
+      },
+      "messageBubble": {
+        "userMessage": {
+          "background": "light blue/lavender",
+          "borderRadius": "16px",
+          "padding": "12-16px",
+          "maxWidth": "70-80%",
+          "alignment": "right",
+          "avatarPosition": "right side, circular"
+        },
+        "assistantMessage": {
+          "background": "transparent or very subtle background",
+          "borderRadius": "16px",
+          "padding": "12-16px",
+          "maxWidth": "70-80%",
+          "alignment": "left",
+          "avatarPosition": "left side, circular with brand icon/color"
+        },
+        "avatar": {
+          "size": "32-36px",
+          "shape": "circle",
+          "spacing": "8-12px from message"
+        }
+      },
+      "actionButtons": {
+        "style": "Icon buttons",
+        "size": "32-36px",
+        "shape": "circle or rounded square",
+        "background": "transparent",
+        "hoverState": "light gray background",
+        "iconColor": "medium gray",
+        "placement": "Below each message bubble"
+      },
+      "primaryButton": {
+        "background": "primary blue",
+        "color": "white",
+        "borderRadius": "8px",
+        "padding": "10-12px 20-24px",
+        "fontWeight": "500",
+        "hoverState": "slightly darker blue"
+      },
+      "badge": {
+        "background": "yellow",
+        "color": "dark gray or black",
+        "borderRadius": "4px",
+        "padding": "4px 8px",
+        "fontSize": "11px",
+        "fontWeight": "600",
+        "iconSize": "12px (if present)"
+      },
+      "inputField": {
+        "style": "Minimal with placeholder",
+        "border": "none or very subtle",
+        "background": "light gray or white",
+        "borderRadius": "24px (pill-shaped)",
+        "padding": "12-14px 16-20px",
+        "fontSize": "14px",
+        "placeholderColor": "medium gray",
+        "iconPosition": "left side (optional)"
+      },
+      "header": {
+        "height": "60-70px",
+        "background": "white",
+        "borderBottom": "1px solid light gray",
+        "padding": "0 24px",
+        "content": "Title/context + action icons",
+        "titleSize": "16px",
+        "titleWeight": "500"
+      }
+    },
+    "interactions": {
+      "hover": {
+        "conversationCard": "subtle shadow increase, slight scale (1.01)",
+        "iconButton": "background appears (light gray circle)",
+        "listItem": "background color change to very light gray"
+      },
+      "active": {
+        "conversationCard": "border or background highlight in primary color",
+        "navIcon": "full white opacity, optional indicator line"
+      },
+      "transition": {
+        "duration": "150-200ms",
+        "easing": "ease-in-out"
+      }
+    },
+    "iconography": {
+      "style": "Outlined/line icons",
+      "strokeWidth": "1.5-2px",
+      "size": {
+        "small": "16px",
+        "medium": "20-24px",
+        "large": "28-32px"
+      },
+      "usage": "Navigation, actions, badges, inline elements"
+    },
+    "spacing": {
+      "scale": "4px base unit (4, 8, 12, 16, 20, 24, 32, 40...)",
+      "containerPadding": "20-24px",
+      "componentGap": "12-16px",
+      "sectionGap": "24-32px"
+    },
+    "borders": {
+      "radius": {
+        "small": "4px (badges)",
+        "medium": "8-12px (cards, buttons)",
+        "large": "16px (message bubbles)",
+        "pill": "24px+ (input fields)"
+      },
+      "width": "1px for dividers",
+      "color": "rgba(0, 0, 0, 0.1) for light borders"
+    },
+    "shadows": {
+      "subtle": "0 1px 3px rgba(0, 0, 0, 0.1)",
+      "medium": "0 4px 6px rgba(0, 0, 0, 0.1)",
+      "elevated": "0 10px 20px rgba(0, 0, 0, 0.15)",
+      "usage": "Cards, dropdowns, modals"
+    },
+    "designPrinciples": {
+      "whitespace": "Generous use of whitespace for breathing room",
+      "hierarchy": "Clear visual hierarchy through size, weight, and color",
+      "consistency": "Consistent spacing, colors, and component patterns",
+      "accessibility": "Good contrast ratios, clear interactive elements",
+      "responsiveness": "Flexible layouts that adapt to content",
+      "minimalism": "Clean, uncluttered interface with purposeful elements",
+      "scannability": "Easy to scan with clear groupings and labels"
+    },
+    "patterns": {
+      "scrollableLists": {
+        "style": "Vertical scroll with cards",
+        "grouping": "Time-based sections (TODAY, YESTERDAY)",
+        "sectionHeader": "Uppercase, small, gray, with spacing"
+      },
+      "conversationFlow": {
+        "alternating": "Left-right alternating message bubbles",
+        "avatarPlacement": "Consistent avatar positioning per sender",
+        "timestampDisplay": "Subtle, right-aligned or inline",
+        "actionBar": "Icons below each message for interactions"
+      },
+      "navigation": {
+        "style": "Icon-based vertical navigation",
+        "activeState": "Visual indicator for current section",
+        "grouping": "Logical grouping of related functions"
+      }
+    }
+  }
+}
