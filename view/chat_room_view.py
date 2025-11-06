@@ -1,8 +1,5 @@
 from nicegui import ui
 from utils.socket_client import client
-# from utils.session import SessionManager
-
-# session_manager = SessionManager()
 
 def chat_room_screen(chat_id: str = '1', session: str = None):
     # Validate session
@@ -10,7 +7,7 @@ def chat_room_screen(chat_id: str = '1', session: str = None):
     #     ui.navigate.to('/')
     #     return
 
-    # username = session_manager.get_username(session)
+    username = None
 
     with ui.row().classes('justify-between items-center p-4 bg-gray-100'):
         ui.label(f'Chat ID: {chat_id}').classes('text-xl font-semibold')

@@ -1,10 +1,13 @@
-from nicegui import ui
+from nicegui import ui, app
 from utils.socket_client import client
-from utils.session import SessionManager
 
-session_manager = SessionManager()
 
 def login_screen():
+    session = app.storage.user.get('session', {})
+    if session and session.get('session_id'):
+        ui.navigate.to('/')
+        return
+
     with ui.card().classes('w-96 mx-auto mt-24 p-6 shadow-lg rounded-xl'):
         ui.label('Login').classes('text-2xl font-bold mb-4 text-center')
         username = ui.input('Usuário').props('outlined').classes('mb-2 w-full rounded-sm')
@@ -23,17 +26,10 @@ def login_screen():
                     return
 
             # Attempt login
-            user_id = client.login(username.value, password.value)
-            if user_id:
-                # Create session for this client
-                session_id = session_manager.create_session(user_id, username.value)
-                # Store session in cookie using JavaScript
-                ui.run_javascript(f'''
-                    document.cookie = "session_id={session_id}; path=/; max-age=86400; SameSite=Lax";
-                    console.log("Session cookie set:", "{session_id}");
-                ''')
-                # Navigate to dashboard
-                ui.navigate.to('/dashboard')
+            result = client.login(username.value, password.value)
+            if result and result.get("session_id"):
+                app.storage.user['session'] = result
+                ui.navigate.to(f'/')
             else:
                 status.set_text('Credenciais inválidas!')
 
