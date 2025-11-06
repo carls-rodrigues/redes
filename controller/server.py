@@ -9,7 +9,8 @@ import sqlite3
 
 HOST, PORT = '127.0.0.1', 5000
 
-database = Database()
+conn = sqlite3.connect("chat.db", check_same_thread=False)
+database = Database(conn=conn)
 users_service = UsersService(db=database)
 msg_service = MessageService(db=database, usersService=users_service)
 auth_service = AuthService(db=database)
@@ -32,11 +33,16 @@ def handle_client(sock, addr):
                 continue
 
             if msg["type"] == "login":
-                user_id = auth_service.login(msg["username"], msg["password"])
+                session = auth_service.login(msg["username"], msg["password"])
+                user_id = session.user_id
                 if user_id:
                     connections[user_id] = sock
-                    sock.sendall(b'{"status":"ok"}')
-                    print(f"[+] {msg['username']} logged in ({user_id})")
+                    sock.sendall(json.dumps({
+                        "status": "ok",
+                        "user_id": user_id,
+                        "username": session.username,
+                        "session_id": session.session_id
+                    }).encode())
                 else:
                     sock.sendall(b'{"status":"error","message":"invalid credentials"}')
                     break

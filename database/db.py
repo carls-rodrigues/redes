@@ -6,90 +6,102 @@ from datetime import datetime
 import uuid
 import sqlite3
 import hashlib
-from models.models import ChatSession, User, Group, Message, UserGroup
+from models.models import ChatSession, User, Group, Session
 
 
 class Database:
-    def __init__(self, db_name=None):
-      self.connection = sqlite3.connect(db_name or "chat.db", check_same_thread=False)
+    def __init__(self, conn=sqlite3.Connection):
+      self.connection = conn
       
       self.init_db()
 
     def init_db(self):
-      c = self.connection.cursor()
-      c.execute('''PRAGMA foreign_keys = ON;''')
-      c.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                  id TEXT PRIMARY KEY,
-                  username TEXT UNIQUE NOT NULL,
-                  connection_id TEXT,
-                  last_seen TEXT
-                );''')
-
-      c.execute('''
-                  CREATE TABLE IF NOT EXISTS groups (
-                  id TEXT PRIMARY KEY,
-                  name TEXT UNIQUE NOT NULL,
-                  created_at TEXT,
-                  creator_id TEXT NOT NULL,
-                  FOREIGN KEY (creator_id) REFERENCES users(id)
-                );
-                ''')
-      
-      c.execute('''
-                CREATE TABLE IF NOT EXISTS chat_sessions (
+        c = self.connection.cursor()
+        c.execute('''PRAGMA foreign_keys = ON;''')
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS users (
                 id TEXT PRIMARY KEY,
-                type TEXT CHECK (type IN ('dm', 'group')) NOT NULL,
-                started_at TEXT,
-                group_id TEXT, -- optional: only used for group chats
-                FOREIGN KEY (group_id) REFERENCES groups(id)
-              );
-              ''')
-      
-      c.execute('''
-                  CREATE TABLE IF NOT EXISTS chat_participants (
-                    chat_session_id TEXT,
-                    user_id TEXT,
-                    PRIMARY KEY (chat_session_id, user_id),
-                    FOREIGN KEY (chat_session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE,
-                    FOREIGN KEY (user_id) REFERENCES users(id)
-                  );
-                ''')
+                username TEXT UNIQUE NOT NULL,
+                connection_id TEXT,
+                last_seen TEXT
+            );''')
 
-      c.execute('''
-                CREATE TABLE IF NOT EXISTS messages (
-                  id TEXT PRIMARY KEY,
-                  chat_session_id TEXT NOT NULL,
-                  sender_id TEXT NOT NULL,
-                  group_id TEXT,
-                  content TEXT NOT NULL,
-                  timestamp TEXT NOT NULL,
-                  FOREIGN KEY (chat_session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE,
-                  FOREIGN KEY (sender_id) REFERENCES users(id),
-                  FOREIGN KEY (group_id) REFERENCES groups(id)
+        c.execute('''
+                CREATE TABLE IF NOT EXISTS groups (
+                id TEXT PRIMARY KEY,
+                name TEXT UNIQUE NOT NULL,
+                created_at TEXT,
+                creator_id TEXT NOT NULL,
+                FOREIGN KEY (creator_id) REFERENCES users(id)
+            );
+            ''')
+
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS chat_sessions (
+            id TEXT PRIMARY KEY,
+            type TEXT CHECK (type IN ('dm', 'group')) NOT NULL,
+            started_at TEXT,
+            group_id TEXT, -- optional: only used for group chats
+            FOREIGN KEY (group_id) REFERENCES groups(id)
+            );
+            ''')
+
+        c.execute('''
+                CREATE TABLE IF NOT EXISTS chat_participants (
+                chat_session_id TEXT,
+                user_id TEXT,
+                PRIMARY KEY (chat_session_id, user_id),
+                FOREIGN KEY (chat_session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id)
                 );
-                ''')
-      
-      c.execute('''
-                CREATE TABLE IF NOT EXISTS user_groups (
-                  user_id TEXT,
-                  group_id TEXT,
-                  joined_at TEXT,
-                  role TEXT DEFAULT 'member',
-                  PRIMARY KEY (user_id, group_id),
-                  FOREIGN KEY (user_id) REFERENCES users(id),
-                  FOREIGN KEY (group_id) REFERENCES groups(id),
-                  CHECK (role IN ('member', 'admin', 'owner'))
-                );
-                ''')
-      
-      c.execute('''
-                CREATE TABLE IF NOT EXISTS auth (
-                  user_id TEXT PRIMARY KEY,
-                  password_hash TEXT NOT NULL,
-                  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-                );''')
-      self.connection.commit()
+            ''')
+
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS messages (
+                id TEXT PRIMARY KEY,
+                chat_session_id TEXT NOT NULL,
+                sender_id TEXT NOT NULL,
+                group_id TEXT,
+                content TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                FOREIGN KEY (chat_session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE,
+                FOREIGN KEY (sender_id) REFERENCES users(id),
+                FOREIGN KEY (group_id) REFERENCES groups(id)
+            );
+            ''')
+
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS user_groups (
+                user_id TEXT,
+                group_id TEXT,
+                joined_at TEXT,
+                role TEXT DEFAULT 'member',
+                PRIMARY KEY (user_id, group_id),
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (group_id) REFERENCES groups(id),
+                CHECK (role IN ('member', 'admin', 'owner'))
+            );
+            ''')
+
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS auth (
+                user_id TEXT PRIMARY KEY,
+                password_hash TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );''')
+
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS sessions (
+                session_id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                username TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                last_seen TEXT NOT NULL,
+                is_expired BOOLEAN DEFAULT FALSE,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+            ''')
+        self.connection.commit()
 
     def reset_database(self):
         global auth, messages, grupos, user_groups, users
@@ -98,10 +110,6 @@ class Database:
         grupos = dict() 
         user_groups = dict()
         users = dict()
-
-    def connection(self):
-        conn = sqlite3.connect(self.db_name)
-        return conn
     
     def close_connection(self, conn):
         conn.close()
@@ -390,18 +398,89 @@ class Database:
     def send_message_to_group(self, sender_id, group_id, content):
         pass
 
-    def get_messages_in_group(self, user_id, group_id):
-        if user_id not in self.users:
-            raise ValueError("User does not exist.")
-        if group_id not in self.grupos:
-            raise ValueError("Group does not exist.")
+    def get_user_chats(self, user_id):
+        """Get all chat sessions for a user with chat names and last message info"""
+        c = self.connection.cursor()
         
-        membership = self.get_user_groups(user_id, group_id)
-        if not membership:
-            raise ValueError("User is not a member of the group.")
+        # Get all chat sessions where user is a participant
+        c.execute('''
+            SELECT cs.id, cs.type, cs.group_id, g.name as group_name,
+                   m.content as last_message, m.timestamp as last_message_time,
+                   u.username as last_sender
+            FROM chat_sessions cs
+            JOIN chat_participants cp ON cs.id = cp.chat_session_id
+            LEFT JOIN groups g ON cs.group_id = g.id
+            LEFT JOIN (
+                SELECT chat_session_id, content, timestamp, sender_id
+                FROM messages
+                WHERE (chat_session_id, timestamp) IN (
+                    SELECT chat_session_id, MAX(timestamp)
+                    FROM messages
+                    GROUP BY chat_session_id
+                )
+            ) m ON cs.id = m.chat_session_id
+            LEFT JOIN users u ON m.sender_id = u.id
+            WHERE cp.user_id = ?
+            ORDER BY m.timestamp DESC
+        ''', (user_id,))
         
-        relevant_messages = [
-            msg for msg in self.messages.values()
-            if msg["group_id"] == group_id
-        ]
-        return relevant_messages
+        chats = []
+        for row in c.fetchall():
+            chat_id, chat_type, group_id, group_name, last_message, last_time, last_sender = row
+            
+            # Determine chat name
+            if chat_type == 'group' and group_name:
+                chat_name = f"Grupo: {group_name}"
+            else:
+                # For DM, get the other participant's name
+                c2 = self.connection.cursor()
+                c2.execute('''
+                    SELECT u.username
+                    FROM chat_participants cp
+                    JOIN users u ON cp.user_id = u.id
+                    WHERE cp.chat_session_id = ? AND cp.user_id != ?
+                ''', (chat_id, user_id))
+                other_user = c2.fetchone()
+                chat_name = f"Chat com {other_user[0]}" if other_user else "Chat privado"
+            
+            chats.append({
+                'id': chat_id,
+                'name': chat_name,
+                'last_message': last_message or "Nenhuma mensagem ainda",
+                'last_message_time': last_time,
+                'last_sender': last_sender
+            })
+        
+        return chats
+
+    def create_session(self, session: Session) -> Session:
+        print(f"Creating session for user_id: {session.user_id}, username: {session.username}, session_id: {session.session_id}, created_at: {session.created_at}")
+        c = self.connection.cursor()
+        c.execute('''
+            INSERT INTO sessions (session_id, user_id, username, created_at, last_seen, is_expired)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            session.session_id,
+            session.user_id,
+            session.username,
+            session.created_at,
+            session.last_seen,
+            session.is_expired
+        ))
+        self.connection.commit()
+        return session
+    
+    def get_session(self, session_id: str, user_id: str) -> Session:
+        c = self.connection.cursor()
+        c.execute('SELECT * FROM sessions WHERE session_id = ? AND user_id = ?', (session_id, user_id))
+        row = c.fetchone()
+        if row:
+            return Session(
+                user_id=row[1],
+                username=row[2],
+                session_id=row[0],
+                created_at=row[3],
+                last_seen=row[4],
+                is_expired=row[5]
+            )
+        return None

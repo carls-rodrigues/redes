@@ -6,8 +6,8 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from database.db import Database
 
 class UsersService:
-  def __init__(self, db=None):
-    self.db = db or Database()
+  def __init__(self, db:Database):
+    self.db = db
 
   def get_user_by_username(self, username):
     print("Fetching user:", username)

@@ -9,8 +9,8 @@ from models.models import Message
 from database.db import Database
 
 class MessageService:
-    def __init__(self, db = None, usersService=None):
-        self.db = db or Database()
+    def __init__(self, db: Database, usersService=None):
+        self.db = db
         self.user_service = usersService or UsersService(self.db)
 
     def send_message(self, sender_id, content, chat_id=None, group_id=None, recipient_id=None):
@@ -55,4 +55,8 @@ class MessageService:
     
     def get_chat_messages(self, user_id, chat_id):
         return self.db.list_chat_messages(user_id, chat_id)
+    
+    def get_user_chats(self, user_id):
+        """Get all chats for a user with names and last messages"""
+        return self.db.get_user_chats(user_id)
     

@@ -14,6 +14,7 @@ class SocketClient:
         self.response_queue = queue.Queue()
         self.listener_thread: Optional[threading.Thread] = None
         self.message_handlers: Dict[str, Callable] = {}
+        self.session = None
 
     def connect(self) -> bool:
         """Connect to the socket server"""
@@ -92,16 +93,16 @@ class SocketClient:
         """Register a handler for specific message types"""
         self.message_handlers[message_type] = handler
 
-    def login(self, username: str, password: str) -> Optional[int]:
-        """Login user and return user_id if successful"""
+    def login(self, username: str, password: str):
         response = self.send_message({
             "type": "login",
             "username": username,
             "password": password
         })
 
-        if response and response.get("status") == "ok":
-            return response.get("user_id")  # Server should return user_id
+        if response.get("status") == "ok":
+            self.session = response
+            return response
         return None
 
     def register(self, username: str, password: str) -> bool:
@@ -114,8 +115,8 @@ class SocketClient:
 
         return response and response.get("status") == "registered"
 
-    def send_chat_message(self, content: str, chat_id: Optional[int] = None,
-                         group_id: Optional[int] = None, recipient_id: Optional[int] = None) -> bool:
+    def send_chat_message(self, content: str, chat_id: Optional[str] = None,
+                         group_id: Optional[str] = None, recipient_id: Optional[str] = None) -> bool:
         """Send a chat message"""
         message = {
             "type": "message",
@@ -133,5 +134,4 @@ class SocketClient:
         return response is not None
 
 # Global client instance
-client = SocketClient()</content>
-<parameter name="filePath">/home/cerf/development/college/redes/utils/socket_client.py
+client = SocketClient()

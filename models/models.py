@@ -35,4 +35,18 @@ class UserGroup:
         self.user_id = user_id
         self.group_id = group_id
         self.joined_at = joined_at or datetime.now()
-        self.role = role or "member"  # e.g., "admin", "member"
+        self.role = role or "member"  # e.g., "admin", "member", "owner"
+
+class ChatParticipant:
+    def __init__(self, chat_id, user_id):
+        self.chat_id = chat_id
+        self.user_id = user_id
+
+class Session:
+    def __init__(self, user_id, username, session_id=None, created_at=None, last_seen=None, is_expired=False):
+        self.session_id = session_id or str(uuid.uuid4())
+        self.user_id = user_id
+        self.username = username
+        self.created_at = created_at or datetime.now().isoformat()
+        self.last_seen = last_seen or datetime.now().isoformat()
+        self.is_expired = is_expired
