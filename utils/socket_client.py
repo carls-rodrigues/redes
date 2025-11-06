@@ -2,8 +2,8 @@ import socket
 import json
 import threading
 import queue
-import time
 from typing import Optional, Callable, Dict, Any
+from nicegui import ui
 
 class SocketClient:
     def __init__(self, host: str = '127.0.0.1', port: int = 5000):
@@ -15,6 +15,8 @@ class SocketClient:
         self.listener_thread: Optional[threading.Thread] = None
         self.message_handlers: Dict[str, Callable] = {}
         self.session = None
+        self.incoming_message_handler: Optional[Callable] = None
+        self.incoming_queue = queue.Queue()
 
     def connect(self) -> bool:
         """Connect to the socket server"""
@@ -108,12 +110,15 @@ class SocketClient:
 
     def _handle_incoming_message(self, message: Dict[str, Any]):
         """Handle incoming real-time messages"""
-        # This can be extended to notify UI components
         print(f"Incoming message: {message}")
+        self.incoming_queue.put(message)
+        if self.incoming_message_handler:
+        # Run safely inside NiceGUI’s event loop
+            ui.run_later(lambda m=message: self.incoming_message_handler(m))
 
-    def register_handler(self, message_type: str, handler: Callable):
-        """Register a handler for specific message types"""
-        self.message_handlers[message_type] = handler
+    def set_incoming_handler(self, handler: Callable):
+        """Set handler for incoming real-time messages"""
+        self.incoming_message_handler = handler
 
     def login(self, username: str, password: str):
         response = self.send_message({

@@ -330,6 +330,37 @@ class Database:
           return None
         return message
     
+    def list_chat_messages(self, user_id, chat_id):
+        c = self.connection.cursor()
+        c.execute('''
+            SELECT 
+                m.id,
+                m.sender_id,
+                u.username AS sender_username,
+                m.content,
+                m.timestamp,
+                m.group_id
+            FROM messages m
+            JOIN users u ON m.sender_id = u.id
+            JOIN chat_participants cp ON cp.chat_session_id = m.chat_session_id
+            WHERE m.chat_session_id = ?
+            AND cp.user_id = ?
+            ORDER BY m.timestamp ASC
+        ''', (chat_id, user_id))
+
+        rows = c.fetchall()
+        messages = []
+        for row in rows:
+            messages.append({
+                "id": row[0],
+                "sender_id": row[1],
+                "sender_username": row[2],
+                "content": row[3],
+                "timestamp": row[4],
+                "group_id": row[5],
+            })
+        return messages
+
     def get_chat_session(self, chat_id):
         c = self.connection.cursor()
 

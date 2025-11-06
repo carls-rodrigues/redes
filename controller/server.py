@@ -62,7 +62,6 @@ def handle_client(sock, addr):
 
                 # 2️⃣ Handle getting user chats (check session from message)
                 if msg["type"] == "get_user_chats":
-                    print('[get_user_chats] request received')
                     session = msg.get("session")
                     if not session:
                         sock.sendall(b'{"status":"error","message":"no session provided"}')
@@ -82,35 +81,84 @@ def handle_client(sock, addr):
                     sock.sendall(response.encode())
                     continue
 
-                # 3️⃣ Require authentication for other actions
-                if not user_id:
-                    sock.sendall(b'{"status":"error","message":"not authenticated"}')
-                    break
-
-                print(f"[{user_id}] Message received: {msg}")
+                # if msg["type"] == "get_chat_messages":
+                #     chat_id = msg.get("chat_id")
+                #     if not chat_id:
+                #         sock.sendall(b'{"status":"error","message":"no chat_id provided"}')
+                #         continue
+                    
+                #     messages = msg_service.get_chat_messages(chat_id)
+                #     response = json.dumps({
+                #         "status": "ok",
+                #         "messages": messages
+                #     })
+                #     sock.sendall(response.encode())
+                #     continue
                 
-                # 4️⃣ Handle sending message
+                if msg["type"] in ["get_messages"]:
+                    session = msg.get("session")
+                    if not session:
+                        sock.sendall(b'{"status":"error","message":"no session provided"}')
+                        continue
+                    request_user_id = session.get("user_id")
+                    chat_id = msg.get("chat_id")
+                    if not request_user_id or not chat_id:
+                        sock.sendall(b'{"status":"error","message":"invalid request"}')
+                        continue
+                    messages = msg_service.get_chat_messages(request_user_id, chat_id)
+                    response = json.dumps({
+                        "status": "ok",
+                        "messages": messages
+                    })
+                    sock.sendall(response.encode())
+                    continue
+                
+                
+                # 3️⃣ Handle sending message (requires session)
                 if msg["type"] == "message":
+                    session = msg.get("session")
+                    if not session:
+                        sock.sendall(b'{"status":"error","message":"no session provided"}')
+                        continue
+                    request_user_id = session.get("user_id")
+                    if not request_user_id:
+                        sock.sendall(b'{"status":"error","message":"invalid user"}')
+                        continue
+                    
+                    # Send the message
                     message = msg_service.send_message(
-                        sender_id=user_id,
+                        sender_id=request_user_id,
                         content=msg["content"],
                         chat_id=msg.get("chat_id"),
                         group_id=msg.get("group_id"),
                         recipient_id=msg.get("recipient_id")
                     )
 
-                    # Broadcast to chat participants
+                    # Send confirmation back to sender with message ID
+                    sock.sendall(json.dumps({
+                        "status": "ok",
+                        "message_id": message.id,
+                        "timestamp": message.timestamp
+                    }).encode())
+
+                    # Broadcast to chat participants (excluding sender)
                     chat = msg_service.db.get_chat_session(message.chat_id)
+                    sender_user = users_service.get_user_by_id(message.sender_id)
                     for p in chat.participants:
                         pid = p["id"]
-                        if pid != user_id and pid in connections:
+                        if pid != request_user_id and pid in connections:
                             payload = json.dumps({
                                 "chat_id": message.chat_id,
-                                "sender_id": message.sender_id,
-                                "content": message.content,
-                                "timestamp": message.timestamp
+                                "message": {
+                                    "id": message.id,
+                                    "sender_id": message.sender_id,
+                                    "sender_username": sender_user.username,
+                                    "content": message.content,
+                                    "timestamp": message.timestamp
+                                }
                             })
                             connections[pid].sendall(payload.encode())
+                    continue
 
     except Exception as e:
         print(f"Error with {addr}: {e}")
