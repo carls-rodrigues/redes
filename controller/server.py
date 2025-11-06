@@ -15,7 +15,7 @@ users_service = UsersService(db=database)
 msg_service = MessageService(db=database, usersService=users_service)
 auth_service = AuthService(db=database)
 
-connections = {}  # user_id -> socket
+connections = {}
 
 def handle_client(sock, addr):
     user_id = None
@@ -76,6 +76,23 @@ def handle_client(sock, addr):
                             "timestamp": message.timestamp
                         })
                         connections[pid].sendall(payload.encode())
+
+            # 4️⃣ Handle getting user chats
+            if msg["type"] == "get_user_chats":
+                print('here')
+                session = msg.get("session")
+                if not session:
+                    sock.sendall(b'{"status":"error","message":"no session provided"}')
+                    continue
+                user_id = session.get("user_id")
+                if not user_id:
+                    sock.sendall(b'{"status":"error","message":"invalid user"}')
+                    continue
+                chats = msg_service.get_user_chats(user_id)
+                sock.sendall(json.dumps({
+                    "status": "ok",
+                    "chats": chats
+                }).encode())
 
     except Exception as e:
         print(f"Error with {addr}: {e}")

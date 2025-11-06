@@ -399,10 +399,9 @@ class Database:
         pass
 
     def get_user_chats(self, user_id):
-        """Get all chat sessions for a user with chat names and last message info"""
         c = self.connection.cursor()
+        print(f"Getting chats for user_id: {user_id}")
         
-        # Get all chat sessions where user is a participant
         c.execute('''
             SELECT cs.id, cs.type, cs.group_id, g.name as group_name,
                    m.content as last_message, m.timestamp as last_message_time,

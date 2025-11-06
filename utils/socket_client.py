@@ -43,8 +43,9 @@ class SocketClient:
     def send_message(self, message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Send a message and wait for response"""
         if not self.connected or not self.sock:
+            print("Not connected to server")
             return None
-
+            
         try:
             data = json.dumps(message).encode()
             self.sock.sendall(data)
@@ -133,5 +134,15 @@ class SocketClient:
         response = self.send_message(message)
         return response is not None
 
-# Global client instance
+    def get_user_chats(self, session) -> Optional[list]:
+        """Get all chats for the current user"""
+        response = self.send_message({
+            "type": "get_user_chats",
+            "session": session
+        })
+
+        if response and response.get("status") == "ok":
+            return response.get("chats", [])
+        return None
+
 client = SocketClient()

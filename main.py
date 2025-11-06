@@ -1,11 +1,13 @@
+import asyncio
 import threading
 from controller import server  # your socket backend
-from nicegui import ui
+from nicegui import ui, background_tasks
 from view.login_view import login_screen
 from view.register_view import register_screen
 from view.chat_dashboard_view import dashboard_screen
 from view.chat_room_view import chat_room_screen
 from view.group_view import group_screen
+from utils.socket_client import client 
 
 def run_socket_server():
     print("⚙️ Starting socket server...")
