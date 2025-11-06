@@ -1,5 +1,5 @@
 from nicegui import ui
-from .chat_header import chat_header
+from .chat_header import ChatHeader
 from .message_area import MessageArea
 from .message_input import MessageInput
 from utils.socket_client import client
@@ -14,30 +14,31 @@ class ChatRoomComponent:
         self.on_back_click = on_back_click
 
         # Create components
-        self.header = None
         self.message_area = MessageArea(self.user_id)
+        self.header = None
         self.message_input = None
-
-        # State
-        self.loaded_message_ids = set()
 
         self._create_ui()
         self._setup_message_handling()
 
     def _create_ui(self):
         """Create the complete chat room UI"""
-        # Header
-        chat_header(self.username, self.on_back_click)
+        # Main container with full height
+        with ui.column().classes('h-full w-full bg-gray-50'):
+            # Fixed header at top
+            self.header = ChatHeader(self.username, self.on_back_click)
+            self.header.header_ui()
 
-        ui.separator()
+            # Message area takes remaining space (full width)
+            with ui.column().classes('flex-grow overflow-hidden w-full'):
+                self.message_area.message_ui()
 
-        # Message area (already created in __init__)
+            # Fixed input at bottom
+            def send_message(content: str):
+                self._send_message(content)
 
-        # Message input
-        def send_message(content: str):
-            self._send_message(content)
-
-        self.message_input = MessageInput(send_message)
+            self.message_input = MessageInput(send_message)
+            self.message_input.input_ui()
 
     def _setup_message_handling(self):
         """Setup real-time message handling"""
@@ -57,7 +58,7 @@ class ChatRoomComponent:
         """Handle incoming real-time messages"""
         if str(msg.get("chat_id")) == str(self.chat_id):
             msg_data = msg.get("message", {})
-            self.message_area.add_message(msg_data)
+            self.message_area.add_message(msg_data)  # Auto-refreshes UI!
 
     def _send_message(self, content: str):
         """Send a message"""
@@ -76,19 +77,14 @@ class ChatRoomComponent:
 
         response = client.send_message(msg_data)
         if response and response.get("status") == "ok":
-            # Add the message ID to our tracking set
-            msg_id = response.get("message_id")
-            if msg_id:
-                self.loaded_message_ids.add(msg_id)
-
-            # Add message to UI
+            # Add message to UI immediately (MessageArea will auto-refresh)
             message_data = {
-                "id": msg_id,
+                "id": response.get("message_id"),
                 "sender_id": self.user_id,
                 "sender_username": self.username,
                 "content": content
             }
-            self.message_area.add_message(message_data)
+            self.message_area.add_message(message_data)  # Auto-refreshes UI!
         else:
             ui.notify("Erro ao enviar mensagem", type="negative")
 
@@ -105,6 +101,6 @@ class ChatRoomComponent:
 
         if response and response.get("status") == "ok":
             messages = response.get("messages", [])
-            self.message_area.load_messages(messages)
+            self.message_area.load_messages(messages)  # Auto-refreshes UI!
         else:
             ui.notify("Erro ao carregar mensagens", type="negative")
