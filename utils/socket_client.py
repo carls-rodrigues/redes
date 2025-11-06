@@ -17,6 +17,7 @@ class SocketClient:
         self.session = None
         self.incoming_message_handler: Optional[Callable] = None
         self.incoming_queue = queue.Queue()
+        self.incoming_message_handlers = []  # Multiple handlers for broadcast
 
     def connect(self) -> bool:
         """Connect to the socket server"""
@@ -95,7 +96,10 @@ class SocketClient:
                         self.response_queue.put(message)
 
                         # Handle real-time messages (like incoming chat messages)
-                        if 'chat_id' in message and 'status' not in message:
+                        # Real-time messages should have 'chat_id' and 'message' field
+                        if 'chat_id' in message and 'message' in message:
+                            self._handle_incoming_message(message)
+                        elif 'chat_id' in message and 'status' not in message and 'message' not in message:
                             self._handle_incoming_message(message)
                     except json.JSONDecodeError:
                         # Incomplete JSON, wait for more data
@@ -110,15 +114,24 @@ class SocketClient:
 
     def _handle_incoming_message(self, message: Dict[str, Any]):
         """Handle incoming real-time messages"""
-        print(f"Incoming message: {message}")
         self.incoming_queue.put(message)
+        
+        # Call the legacy single handler if set
         if self.incoming_message_handler:
-        # Run safely inside NiceGUI’s event loop
             ui.run_later(lambda m=message: self.incoming_message_handler(m))
+        
+        # Call all registered handlers
+        for handler in self.incoming_message_handlers:
+            ui.run_later(lambda m=message, h=handler: h(m))
 
     def set_incoming_handler(self, handler: Callable):
         """Set handler for incoming real-time messages"""
         self.incoming_message_handler = handler
+    
+    def add_incoming_handler(self, handler: Callable):
+        """Add a handler for incoming real-time messages (non-exclusive)"""
+        if handler not in self.incoming_message_handlers:
+            self.incoming_message_handlers.append(handler)
 
     def login(self, username: str, password: str):
         response = self.send_message({

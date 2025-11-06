@@ -19,6 +19,33 @@ def dashboard_screen(chat: str = None):
     user_id = session.get('user_id')
     username = session.get('username')
     
+    # Ensure the socket client is connected
+    if not client.connected:
+        client.connect()
+    
+    # ====================================================================
+    # GLOBAL CHAT CARD MAP - for updating chat cards when messages arrive
+    # ====================================================================
+    chat_card_map = {}  # Map chat_id to card info (element, label)
+    
+    # Global handler to update ALL chat cards when messages arrive
+    def global_incoming_message_handler(msg: dict):
+        """Handle incoming messages and update chat card for that chat"""
+        chat_id = msg.get("chat_id")
+        message_data = msg.get("message", {})
+        last_message = message_data.get("content", "")
+        
+        if chat_id and chat_id in chat_card_map:
+            try:
+                card_info = chat_card_map[chat_id]
+                label_element = card_info['last_message_label']
+                label_element.set_text(last_message)
+            except Exception as e:
+                pass
+    
+    # Register the global handler EARLY
+    client.add_incoming_handler(global_incoming_message_handler)
+    
     # State management
     state = {
         'selected_chat': None,
@@ -107,6 +134,17 @@ def dashboard_screen(chat: str = None):
                     if chat_data['id'] in chat_card_map:
                         card_info = chat_card_map[chat_data['id']]
                         card_info['last_message_label'].set_text(new_last_message)
+                    # Enable polling to detect receiver's messages
+                    enable_polling()
+                
+                # Create a callback to update the chat card when messages are received
+                def on_message_received(new_last_message: str):
+                    """Update the chat card with the new last message received"""
+                    chat_data['last_message'] = new_last_message
+                    # Update the label in the chat card if it exists in the map
+                    if chat_data['id'] in chat_card_map:
+                        card_info = chat_card_map[chat_data['id']]
+                        card_info['last_message_label'].set_text(new_last_message)
                 
                 # Create and render the chat room component
                 with chat_area_container:
@@ -114,7 +152,8 @@ def dashboard_screen(chat: str = None):
                         chat_id=chat_data['id'],
                         session=session,
                         on_back_click=lambda: None,  # No back button in split view
-                        on_message_sent=on_message_sent  # Pass the callback
+                        on_message_sent=on_message_sent,  # Pass the callback
+                        on_message_received=on_message_received  # Pass the callback for received messages
                     )
                     chat_room.load_messages()
             
@@ -134,8 +173,6 @@ def dashboard_screen(chat: str = None):
         # ====================================================================
         # LOAD CHATS (defined after all containers and functions are ready)
         # ====================================================================
-        chat_card_map = {}  # Map chat_id to card info (element, label)
-        
         def load_chats():
             """Load and display user chats"""
             chat_list_container.clear()
@@ -202,6 +239,30 @@ def dashboard_screen(chat: str = None):
         
         # Initial load
         load_chats()
+        
+        # Poll for chat updates - keep polling but check efficiently
+        def poll_chats():
+            """Periodically refresh chat list to get latest messages"""
+            if not user_id:
+                return
+            
+            try:
+                user_chats = client.get_user_chats(session=session)
+                if user_chats:
+                    for chat in user_chats:
+                        chat_id = chat['id']
+                        if chat_id in chat_card_map:
+                            # Update the last message text
+                            card_info = chat_card_map[chat_id]
+                            try:
+                                card_info['last_message_label'].set_text(chat['last_message'])
+                            except Exception as e:
+                                pass
+            except Exception as e:
+                pass
+        
+        # Poll every 1 second for updates
+        ui.timer(1.0, poll_chats)
 
 
 def logout():

@@ -1,0 +1,170 @@
+import db from '../database/Database';
+import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcryptjs';
+import { User, Session, Chat, Message } from '../types';
+
+export class UserService {
+  async createUser(username: string, password: string): Promise<User> {
+    const id = uuidv4();
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const createdAt = new Date().toISOString();
+
+    const stmt = db.prepare(
+      'INSERT INTO users (id, username, password, created_at) VALUES (?, ?, ?, ?)'
+    );
+    stmt.run(id, username, hashedPassword, createdAt);
+
+    return { id, username, created_at: createdAt };
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const stmt = db.prepare('SELECT * FROM users WHERE username = ?');
+    return stmt.get(username) as User | undefined;
+  }
+
+  async getUserById(id: string): Promise<User | undefined> {
+    const stmt = db.prepare('SELECT id, username FROM users WHERE id = ?');
+    return stmt.get(id) as User | undefined;
+  }
+
+  async verifyPassword(password: string, hash: string): Promise<boolean> {
+    return bcrypt.compare(password, hash);
+  }
+
+  async createSession(userId: string, username: string): Promise<Session> {
+    const sessionId = uuidv4();
+    const createdAt = new Date().toISOString();
+
+    const stmt = db.prepare(
+      'INSERT INTO sessions (session_id, user_id, created_at) VALUES (?, ?, ?)'
+    );
+    stmt.run(sessionId, userId, createdAt);
+
+    return { session_id: sessionId, user_id: userId, username, created_at: createdAt };
+  }
+}
+
+export class ChatService {
+  async getUserChats(userId: string): Promise<Chat[]> {
+    const query = `
+      SELECT cs.id, cs.type, cs.group_id,
+        (SELECT username FROM users WHERE id != ? AND id IN (
+          SELECT user_id FROM chat_participants WHERE chat_session_id = cs.id
+        ) LIMIT 1) as other_username,
+        (SELECT content FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_message,
+        (SELECT timestamp FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_message_time,
+        (SELECT sender_id FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_sender_id
+      FROM chat_sessions cs
+      WHERE cs.id IN (
+        SELECT chat_session_id FROM chat_participants WHERE user_id = ?
+      )
+      ORDER BY last_message_time DESC NULLS LAST
+    `;
+
+    const stmt = db.prepare(query);
+    const rows = stmt.all(userId, userId) as any[];
+
+    return rows.map(chat => {
+      let name = 'Chat';
+      if (chat.type === 'group') {
+        name = `Grupo: ${chat.group_id}`;
+      } else {
+        name = `Chat com ${chat.other_username || 'Usuário'}`;
+      }
+
+      return {
+        id: chat.id,
+        name,
+        last_message: chat.last_message || 'Nenhuma mensagem ainda',
+        last_message_time: chat.last_message_time,
+        last_sender: chat.last_sender_id
+      };
+    });
+  }
+
+  async getChat(chatId: string): Promise<any> {
+    const stmt = db.prepare('SELECT * FROM chat_sessions WHERE id = ?');
+    return stmt.get(chatId);
+  }
+
+  async getChatParticipants(chatId: string): Promise<User[]> {
+    const query = `
+      SELECT u.id, u.username FROM users u
+      JOIN chat_participants cp ON u.id = cp.user_id
+      WHERE cp.chat_session_id = ?
+    `;
+    const stmt = db.prepare(query);
+    return stmt.all(chatId) as User[];
+  }
+
+  async createOrGetDM(userId1: string, userId2: string): Promise<string> {
+    // Check if DM already exists
+    const checkQuery = `
+      SELECT cs.id FROM chat_sessions cs
+      WHERE cs.type = 'dm' AND cs.id IN (
+        SELECT chat_session_id FROM chat_participants WHERE user_id = ?
+      ) AND cs.id IN (
+        SELECT chat_session_id FROM chat_participants WHERE user_id = ?
+      )
+    `;
+    const checkStmt = db.prepare(checkQuery);
+    const existing = checkStmt.get(userId1, userId2) as any;
+    if (existing) return existing.id;
+
+    // Create new DM
+    const chatId = uuidv4();
+    const createdAt = new Date().toISOString();
+
+    db.transaction(() => {
+      const insertChat = db.prepare(
+        'INSERT INTO chat_sessions (id, type, created_at) VALUES (?, ?, ?)'
+      );
+      insertChat.run(chatId, 'dm', createdAt);
+
+      const insertP1 = db.prepare(
+        'INSERT INTO chat_participants (id, chat_session_id, user_id, joined_at) VALUES (?, ?, ?, ?)'
+      );
+      insertP1.run(uuidv4(), chatId, userId1, createdAt);
+
+      const insertP2 = db.prepare(
+        'INSERT INTO chat_participants (id, chat_session_id, user_id, joined_at) VALUES (?, ?, ?, ?)'
+      );
+      insertP2.run(uuidv4(), chatId, userId2, createdAt);
+    });
+
+    return chatId;
+  }
+}
+
+export class MessageService {
+  async sendMessage(chatId: string, senderId: string, content: string): Promise<Message> {
+    const id = uuidv4();
+    const timestamp = new Date().toISOString();
+
+    const stmt = db.prepare(
+      'INSERT INTO messages (id, chat_session_id, sender_id, content, timestamp) VALUES (?, ?, ?, ?, ?)'
+    );
+    stmt.run(id, chatId, senderId, content, timestamp);
+
+    return { id, chat_session_id: chatId, sender_id: senderId, content, timestamp };
+  }
+
+  async getMessages(chatId: string, limit: number = 50): Promise<Message[]> {
+    const query = `
+      SELECT m.id, m.content, m.timestamp, m.sender_id, m.chat_session_id,
+        u.username as sender_username
+      FROM messages m
+      JOIN users u ON m.sender_id = u.id
+      WHERE m.chat_session_id = ?
+      ORDER BY m.timestamp DESC
+      LIMIT ?
+    `;
+    const stmt = db.prepare(query);
+    const messages = stmt.all(chatId, limit) as Message[];
+    return messages.reverse(); // Return in chronological order
+  }
+}
+
+export const userService = new UserService();
+export const chatService = new ChatService();
+export const messageService = new MessageService();
