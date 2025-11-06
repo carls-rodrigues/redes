@@ -11,19 +11,31 @@ const server = net.createServer((socket) => {
   handler.registerClient(clientId, socket);
   
   console.log(`[${new Date().toISOString()}] Client connected: ${clientId}`);
+  
+  let buffer = '';
 
   socket.on('data', async (data) => {
-    try {
-      const message: SocketMessage = JSON.parse(data.toString());
-      await handler.handleMessage(clientId, message);
-    } catch (error: any) {
-      if (error instanceof SyntaxError) {
-        socket.write(JSON.stringify({ 
-          status: 'error', 
-          message: 'Invalid JSON format' 
-        }));
-      } else {
-        console.error(`Error processing message from ${clientId}:`, error);
+    buffer += data.toString();
+    
+    // Process complete lines (separated by \n)
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || ''; // Keep incomplete line in buffer
+    
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      
+      try {
+        const message: SocketMessage = JSON.parse(line);
+        await handler.handleMessage(clientId, message);
+      } catch (error: any) {
+        if (error instanceof SyntaxError) {
+          socket.write(JSON.stringify({ 
+            status: 'error', 
+            message: 'Invalid JSON format' 
+          }) + '\n');
+        } else {
+          console.error(`Error processing message from ${clientId}:`, error);
+        }
       }
     }
   });

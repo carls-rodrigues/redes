@@ -144,9 +144,12 @@ class SocketHandler {
         });
         // Broadcast to other participants
         const participants = await services_1.chatService.getChatParticipants(chat_id);
+        console.log(`Broadcasting message to ${participants.length} participants. Sender: ${client.session.user_id}`);
         for (const participant of participants) {
+            console.log(`Checking participant: ${participant.id} vs sender: ${client.session.user_id}`);
             if (participant.id !== client.session.user_id) {
                 const receiverClientId = this.userSessions.get(participant.id);
+                console.log(`Found receiver client ID: ${receiverClientId}`);
                 if (receiverClientId) {
                     this.sendMessage(receiverClientId, {
                         chat_id,
