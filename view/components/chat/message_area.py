@@ -7,32 +7,34 @@ class MessageArea:
         self.user_id = user_id
         self.messages: List[Dict[str, Any]] = []
         self.loaded_message_ids = set()
+        self.message_container = None  # Reference to the container
+        self.container_element = None  # Reference to the actual UI element
 
         # Create refreshable UI function
         @ui.refreshable
         def message_ui():
-            self._render_messages()
+            self._render_initial()
 
         self.message_ui = message_ui
-        # Don't render immediately - let the layout control when to render
 
-    def _render_messages(self):
-        """Internal method to render all messages with design system styling"""
+    def _render_initial(self):
+        """Initial render - creates the container"""
         with ui.column().classes('w-full h-full p-4 overflow-y-auto message-container scroll-smooth').style(
             f'background-color: {Colors.WHITE}; '
             f'padding: {Spacing.LG}; '
-        ):
+        ) as container:
+            self.container_element = container
+            
             if not self.messages:
                 ui.label('Nenhuma mensagem ainda').classes('text-center py-8').style(
                     f'color: {Colors.MEDIUM_GRAY}; '
                 )
-                return
-
-            for msg_data in self.messages:
-                self._render_single_message(msg_data)
+            else:
+                for msg_data in self.messages:
+                    self._render_single_message(msg_data)
 
             # Scroll to bottom after rendering
-            ui.run_javascript('setTimeout(() => { const el = document.querySelector(".message-container"); if (el) el.scrollTop = el.scrollHeight; }, 100);')
+            ui.run_javascript('setTimeout(() => { const el = document.querySelector(".message-container"); if (el) el.scrollTop = el.scrollHeight; }, 50);')
 
     def _render_single_message(self, message_data: Dict[str, Any]):
         """Render a single message with design system styling"""
@@ -78,12 +80,19 @@ class MessageArea:
                     ts_label.style(f'color: {Colors.MEDIUM_GRAY}; font-size: 11px;')
 
     def add_message(self, message_data: Dict[str, Any]):
-        """Add a message and refresh the UI"""
+        """Add a message WITHOUT refreshing - directly append to container"""
         msg_id = message_data.get("id")
         if msg_id and msg_id not in self.loaded_message_ids:
             self.loaded_message_ids.add(msg_id)
             self.messages.append(message_data)
-            self.message_ui.refresh()  # 🔄 Trigger UI update
+            
+            # Append message directly to container without refresh
+            if self.container_element:
+                with self.container_element:
+                    self._render_single_message(message_data)
+                
+                # Scroll to bottom ONLY after adding new message
+                ui.run_javascript('setTimeout(() => { const el = document.querySelector(".message-container"); if (el) el.scrollTop = el.scrollHeight; }, 30);')
 
     def load_messages(self, messages: List[Dict[str, Any]]):
         """Load initial messages and refresh"""

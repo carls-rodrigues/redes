@@ -7,12 +7,13 @@ from design_tokens import Colors, Spacing, Layout
 from typing import Dict, Any, Optional
 
 class ChatRoomComponent:
-    def __init__(self, chat_id: str, session: Dict[str, Any], on_back_click=None):
+    def __init__(self, chat_id: str, session: Dict[str, Any], on_back_click=None, on_message_sent=None):
         self.chat_id = chat_id
         self.session = session
         self.username = session.get('username')
         self.user_id = session.get('user_id')
         self.on_back_click = on_back_click
+        self.on_message_sent = on_message_sent  # Callback when message is sent
 
         # Create components
         self.message_area = MessageArea(self.user_id)
@@ -91,6 +92,10 @@ class ChatRoomComponent:
                 "content": content
             }
             self.message_area.add_message(message_data)  # Auto-refreshes UI!
+            
+            # Notify parent that a message was sent (update chat card)
+            if self.on_message_sent:
+                self.on_message_sent(content)
         else:
             ui.notify("Erro ao enviar mensagem", type="negative")
 

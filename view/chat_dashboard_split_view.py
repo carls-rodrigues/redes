@@ -99,12 +99,22 @@ def dashboard_screen(chat: str = None):
                 """Load chat view into the main area"""
                 chat_area_container.clear()
                 
+                # Create a callback to update the chat card when messages are sent
+                def on_message_sent(new_last_message: str):
+                    """Update the chat card with the new last message"""
+                    chat_data['last_message'] = new_last_message
+                    # Update the label in the chat card if it exists in the map
+                    if chat_data['id'] in chat_card_map:
+                        card_info = chat_card_map[chat_data['id']]
+                        card_info['last_message_label'].set_text(new_last_message)
+                
                 # Create and render the chat room component
                 with chat_area_container:
                     chat_room = ChatRoomComponent(
                         chat_id=chat_data['id'],
                         session=session,
-                        on_back_click=lambda: None  # No back button in split view
+                        on_back_click=lambda: None,  # No back button in split view
+                        on_message_sent=on_message_sent  # Pass the callback
                     )
                     chat_room.load_messages()
             
@@ -124,10 +134,13 @@ def dashboard_screen(chat: str = None):
         # ====================================================================
         # LOAD CHATS (defined after all containers and functions are ready)
         # ====================================================================
+        chat_card_map = {}  # Map chat_id to card info (element, label)
+        
         def load_chats():
             """Load and display user chats"""
             chat_list_container.clear()
             chat_cards.clear()
+            chat_card_map.clear()
             
             if not user_id:
                 with chat_list_container:
@@ -166,9 +179,15 @@ def dashboard_screen(chat: str = None):
                                 
                                 with ui.column().classes('p-3 w-full'):
                                     ui.label(chat_data['name']).classes('text-sm font-semibold text-gray-900')
-                                    ui.label(chat_data['last_message']).classes('text-xs text-gray-500 truncate mt-1')
+                                    last_message_label = ui.label(chat_data['last_message']).classes('text-xs text-gray-500 truncate mt-1')
                                 
                                 chat_cards.append(card_element)
+                                
+                                # Store reference to card and last message label for updates
+                                chat_card_map[chat_data['id']] = {
+                                    'card': card_element,
+                                    'last_message_label': last_message_label
+                                }
                                 
                                 # Auto-select if this chat ID matches the query parameter
                                 if state['auto_select_chat_id'] and str(chat_data['id']) == str(state['auto_select_chat_id']):
