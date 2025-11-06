@@ -43,17 +43,24 @@ class SocketClient:
     def send_message(self, message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Send a message and wait for response"""
         if not self.connected or not self.sock:
-            print("Not connected to server")
-            return None
+            print("Not connected to server, attempting to reconnect...")
+            if not self.connect():
+                print("Failed to reconnect to server")
+                return None
             
         try:
             data = json.dumps(message).encode()
+            print(f"Sending message: {message}")
             self.sock.sendall(data)
 
             # Wait for response with timeout
-            return self._wait_for_response(timeout=5.0)
+            response = self._wait_for_response(timeout=5.0)
+            if response is None:
+                print("No response received from server (timeout)")
+            return response
         except Exception as e:
             print(f"Error sending message: {e}")
+            self.connected = False
             return None
 
     def _wait_for_response(self, timeout: float = 5.0) -> Optional[Dict[str, Any]]:
@@ -66,24 +73,38 @@ class SocketClient:
 
     def _listen_for_messages(self):
         """Listen for incoming messages from server"""
+        buffer = ""
         while self.connected and self.sock:
             try:
                 data = self.sock.recv(4096)
                 if not data:
+                    print("Connection closed by server")
                     break
 
-                message = json.loads(data.decode())
-                self.response_queue.put(message)
+                # Accumulate data in buffer
+                buffer += data.decode()
+                
+                # Try to parse complete JSON messages
+                while buffer:
+                    try:
+                        message = json.loads(buffer)
+                        buffer = ""  # Clear buffer on successful parse
+                        print(f"Received message: {message}")
+                        self.response_queue.put(message)
 
-                # Handle real-time messages (like incoming chat messages)
-                if 'chat_id' in message:
-                    self._handle_incoming_message(message)
+                        # Handle real-time messages (like incoming chat messages)
+                        if 'chat_id' in message and 'status' not in message:
+                            self._handle_incoming_message(message)
+                    except json.JSONDecodeError:
+                        # Incomplete JSON, wait for more data
+                        break
 
             except Exception as e:
                 print(f"Error receiving message: {e}")
                 break
 
         self.connected = False
+        print("Listener thread stopped")
 
     def _handle_incoming_message(self, message: Dict[str, Any]):
         """Handle incoming real-time messages"""
