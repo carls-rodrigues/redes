@@ -36,7 +36,23 @@ npm install
 
 ## 🎯 Como Usar
 
-### Opção 1: Desenvolvimento Local (Recomendado para Testes)
+### Opção 1: Interface Web (Recomendado para Faculdade)
+
+Esta é a opção mais simples para usar na rede da faculdade:
+
+```bash
+cd nodejs
+npm run build
+node dist/server.js
+```
+
+**Abra no navegador:** http://localhost:8080 (ou o IP do servidor na rede)
+
+**Para colegas na mesma rede:**
+- Substitua `localhost` pelo IP da máquina do servidor
+- Exemplo: `http://192.168.1.100:8080`
+
+### Opção 2: Desenvolvimento Local (Desktop App)
 
 Abra **dois terminais** - um para o backend e outro para o frontend:
 
@@ -114,40 +130,88 @@ No header do chat, clique no botão com **3 pontos (⋯)** para:
 - 🗑️ Clear chat
 - ❌ Delete conversation
 
-## 🌐 Conectando com Colegas na Rede Local
+## 🌐 Conectando com Colegas na Rede da Faculdade
 
-Se ambos estão na **mesma rede local**:
+Para usar o chat na rede da faculdade onde múltiplos computadores precisam se conectar ao mesmo servidor:
 
-### No Computador do Servidor
+### Passo 1: Configurar o Servidor (Computador que roda o backend)
 
-1. Execute o backend:
+1. **Descubra o IP da sua máquina na rede:**
+   ```bash
+   # Linux/Mac
+   ip addr show | grep "inet " | grep -v 127.0.0.1
+
+   # Ou use:
+   hostname -I
+   ```
+
+2. **Anote o IP local** (geralmente começa com 192.168.x.x ou 10.x.x.x)
+
+3. **Inicie o backend normalmente:**
+   ```bash
+   cd nodejs
+   npm run dev
+   ```
+
+### Passo 2: Configurar os Clientes (Computadores dos colegas)
+
+Para cada computador que vai usar o chat, configure as variáveis de ambiente:
+
+#### Linux/Mac:
 ```bash
-cd nodejs
+# No terminal, antes de iniciar o Electron:
+export REDES_SERVER_HOST="192.168.1.100"  # IP do servidor
+export REDES_SERVER_PORT="5000"
+cd electron
 npm run dev
 ```
 
-2. Anote o **IP local** da máquina:
-   - **Windows**: `ipconfig` (procure por "IPv4 Address")
-   - **Linux/Mac**: `ifconfig` (procure por "inet addr")
-   - Exemplo: `192.168.1.100`
+#### Windows (PowerShell):
+```powershell
+# No PowerShell, antes de iniciar o Electron:
+$env:REDES_SERVER_HOST = "192.168.1.100"  # IP do servidor
+$env:REDES_SERVER_PORT = "5000"
+cd electron
+npm run dev
+```
 
-### No Computador do Colega
+#### Windows (CMD):
+```cmd
+# No CMD, antes de iniciar o Electron:
+set REDES_SERVER_HOST=192.168.1.100
+set REDES_SERVER_PORT=5000
+cd electron
+npm run dev
+```
 
-1. Edite o arquivo `electron/src/renderer/App.tsx`
-2. Procure pela linha que conecta ao servidor
-3. Altere `localhost:5000` para `SERVIDOR_IP:5000` (ex: `192.168.1.100:5000`)
-4. Salve e execute o Electron
+### Passo 3: Verificar Conexão
 
-Alternativa: Modifique a variável de ambiente antes de iniciar:
+1. Abra o aplicativo Electron
+2. Tente fazer login
+3. Se der erro de conexão, verifique:
+   - O IP do servidor está correto
+   - O backend está rodando no servidor
+   - Não há firewall bloqueando a porta 5000
+   - Todos estão na mesma rede
 
+### 🔥 Dica Rápida para Faculdade
+
+Crie um arquivo `.env` na pasta `electron/` com:
+```
+REDES_SERVER_HOST=192.168.1.100
+REDES_SERVER_PORT=5000
+```
+
+E use um script para iniciar:
 ```bash
-# Windows (PowerShell)
-$env:VITE_SERVER_URL = "http://192.168.1.100:5000"
-npm run dev
-
 # Linux/Mac
-export VITE_SERVER_URL="http://192.168.1.100:5000"
-npm run dev
+source .env && npm run dev
+
+# Windows
+# Crie um arquivo .bat com:
+# set REDES_SERVER_HOST=192.168.1.100
+# set REDES_SERVER_PORT=5000
+# npm run dev
 ```
 
 ## 🐳 Usando Docker (Recomendado para Deploy)

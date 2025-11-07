@@ -1,3 +1,5 @@
+import * as React from "react"
+
 interface ChatMessageProps {
   type: "user" | "assistant"
   content: string

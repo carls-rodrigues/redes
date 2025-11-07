@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RedES Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        border: "hsl(var(--border))",
+                        input: "hsl(var(--input))",
+                        ring: "hsl(var(--ring))",
+                        background: "hsl(var(--background))",
+                        foreground: "hsl(var(--foreground))",
+                        primary: {
+                            DEFAULT: "hsl(var(--primary))",
+                            foreground: "hsl(var(--primary-foreground))",
+                        },
+                        secondary: {
+                            DEFAULT: "hsl(var(--secondary))",
+                            foreground: "hsl(var(--secondary-foreground))",
+                        },
+                        destructive: {
+                            DEFAULT: "hsl(var(--destructive))",
+                            foreground: "hsl(var(--destructive-foreground))",
+                        },
+                        muted: {
+                            DEFAULT: "hsl(var(--muted))",
+                            foreground: "hsl(var(--muted-foreground))",
+                        },
+                        accent: {
+                            DEFAULT: "hsl(var(--accent))",
+                            foreground: "hsl(var(--accent-foreground))",
+                        },
+                        popover: {
+                            DEFAULT: "hsl(var(--popover))",
+                            foreground: "hsl(var(--popover-foreground))",
+                        },
+                        card: {
+                            DEFAULT: "hsl(var(--card))",
+                            foreground: "hsl(var(--card-foreground))",
+                        },
+                    },
+                    borderRadius: {
+                        lg: "var(--radius)",
+                        md: "calc(var(--radius) - 2px)",
+                        sm: "calc(var(--radius) - 4px)",
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        :root {
+            --background: 0 0% 100%;
+            --foreground: 222.2 84% 4.9%;
+            --card: 0 0% 100%;
+            --card-foreground: 222.2 84% 4.9%;
+            --popover: 0 0% 100%;
+            --popover-foreground: 222.2 84% 4.9%;
+            --primary: 222.2 47.4% 11.2%;
+            --primary-foreground: 210 40% 98%;
+            --secondary: 210 40% 96%;
+            --secondary-foreground: 222.2 84% 4.9%;
+            --muted: 210 40% 96%;
+            --muted-foreground: 215.4 16.3% 46.9%;
+            --accent: 210 40% 96%;
+            --accent-foreground: 222.2 84% 4.9%;
+            --destructive: 0 84.2% 60.2%;
+            --destructive-foreground: 210 40% 98%;
+            --border: 214.3 31.8% 91.4%;
+            --input: 214.3 31.8% 91.4%;
+            --ring: 222.2 84% 4.9%;
+            --radius: 0.5rem;
+        }
+
+        .dark {
+            --background: 222.2 84% 4.9%;
+            --foreground: 210 40% 98%;
+            --card: 222.2 84% 4.9%;
+            --card-foreground: 210 40% 98%;
+            --popover: 222.2 84% 4.9%;
+            --popover-foreground: 210 40% 98%;
+            --primary: 210 40% 98%;
+            --primary-foreground: 222.2 47.4% 11.2%;
+            --secondary: 217.2 32.6% 17.5%;
+            --secondary-foreground: 210 40% 98%;
+            --muted: 217.2 32.6% 17.5%;
+            --muted-foreground: 215 20.2% 65.1%;
+            --accent: 217.2 32.6% 17.5%;
+            --accent-foreground: 210 40% 98%;
+            --destructive: 0 62.8% 30.6%;
+            --destructive-foreground: 210 40% 98%;
+            --border: 217.2 32.6% 17.5%;
+            --input: 217.2 32.6% 17.5%;
+            --ring: 212.7 26.8% 83.9%;
+        }
+    </style>
+</head>
+<body class="bg-background text-foreground font-sans antialiased">
+    <div id="app">
+        <!-- Auth Screen -->
+        <div id="auth-screen" class="screen active min-h-screen flex items-center justify-center p-4">
+            <div class="w-full max-w-md bg-card rounded-lg border shadow-lg p-8">
+                <div class="text-center mb-8">
+                    <h1 class="text-3xl font-bold text-primary mb-2">🎓 RedES Chat</h1>
+                    <p class="text-muted-foreground">College Communication Made Simple</p>
+                </div>
+
+                <div class="flex border-b mb-6">
+                    <button id="login-tab" class="tab active flex-1 py-3 px-4 text-center font-medium border-b-2 border-primary text-primary transition-colors">
+                        Login
+                    </button>
+                    <button id="register-tab" class="tab flex-1 py-3 px-4 text-center font-medium border-b-2 border-transparent text-muted-foreground hover:text-foreground transition-colors">
+                        Register
+                    </button>
+                </div>
+
+                <div id="login-form" class="auth-form active space-y-4">
+                    <div>
+                        <input type="text" id="login-username" placeholder="Username"
+                               class="w-full px-4 py-3 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors">
+                    </div>
+                    <div>
+                        <input type="password" id="login-password" placeholder="Password"
+                               class="w-full px-4 py-3 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors">
+                    </div>
+                    <button id="login-btn" class="w-full bg-primary text-primary-foreground py-3 px-4 rounded-md font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        Login
+                    </button>
+                    <div id="login-error" class="error-message text-destructive text-sm mt-2 hidden"></div>
+                </div>
+
+                <div id="register-form" class="auth-form space-y-4 hidden">
+                    <div>
+                        <input type="text" id="register-username" placeholder="Username"
+                               class="w-full px-4 py-3 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors">
+                    </div>
+                    <div>
+                        <input type="password" id="register-password" placeholder="Password"
+                               class="w-full px-4 py-3 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors">
+                    </div>
+                    <button id="register-btn" class="w-full bg-primary text-primary-foreground py-3 px-4 rounded-md font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        Create Account
+                    </button>
+                    <div id="register-error" class="error-message text-destructive text-sm mt-2 hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Screen -->
+        <div id="chat-screen" class="screen hidden h-screen flex bg-background">
+            <!-- Sidebar -->
+            <div class="w-80 bg-muted/30 border-r flex flex-col">
+                <!-- User Info -->
+                <div class="p-4 border-b bg-card flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-semibold text-sm">
+                            👤
+                        </div>
+                        <span id="current-user" class="font-medium">Not logged in</span>
+                    </div>
+                    <button id="logout-btn" class="px-3 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors">
+                        Logout
+                    </button>
+                </div>
+
+                <!-- Conversations -->
+                <div class="flex-1 flex flex-col">
+                    <div class="p-4 border-b bg-card flex items-center justify-between">
+                        <h3 class="font-semibold">Conversations</h3>
+                        <button id="new-chat-btn" class="w-8 h-8 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors flex items-center justify-center text-sm font-medium">
+                            +
+                        </button>
+                    </div>
+
+                    <div id="conversations-list" class="flex-1 overflow-y-auto p-2 space-y-2">
+                        <!-- Conversations will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Area -->
+            <div class="flex-1 flex flex-col">
+                <!-- Chat Header -->
+                <div id="chat-header" class="p-4 border-b bg-card flex items-center gap-3">
+                    <div class="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+                        💬
+                    </div>
+                    <h3 id="chat-title" class="font-semibold">Select a conversation</h3>
+                </div>
+
+                <!-- Messages -->
+                <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/10">
+                    <div class="welcome-message text-center py-12">
+                        <div class="text-6xl mb-4">💬</div>
+                        <h2 class="text-2xl font-bold mb-2">Welcome to RedES Chat!</h2>
+                        <p class="text-muted-foreground">Select a conversation to start chatting</p>
+                    </div>
+                </div>
+
+                <!-- Message Input -->
+                <div id="message-input" class="p-4 border-t bg-card flex gap-3">
+                    <input type="text" id="message-text" placeholder="Type a message..."
+                           class="flex-1 px-4 py-3 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
+                           disabled>
+                    <button id="send-btn" class="px-6 py-3 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        Send
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>

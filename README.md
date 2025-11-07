@@ -4,21 +4,45 @@ Um aplicativo de chat em tempo real desenvolvido para a turma com **Electron**, 
 
 ## 🚀 Começar Rapidamente
 
-### Windows
+### Backend + Web Interface
 
 ```bash
-# Duplo-clique em:
-setup.bat
-
-# Ou via terminal:
-setup.bat
+cd nodejs
+npm run build
+node dist/server.js
 ```
 
-### Linux / macOS
+**Open your browser:** http://localhost:8080
+
+### Desktop App (Electron)
 
 ```bash
-chmod +x setup.sh
-./setup.sh
+cd electron
+npm run dev
+```
+
+## 🌐 Usando na Rede da Faculdade
+
+Para conectar múltiplos computadores na rede da faculdade:
+
+### 1. Configurar Servidor
+```bash
+cd electron
+# Linux/Mac
+./setup-network.sh
+
+# Windows
+setup-network.bat
+```
+
+### 2. Configurar Clientes
+Cada colega deve copiar o arquivo `.env` gerado e executar:
+```bash
+# Linux/Mac
+source .env && npm run dev
+
+# Windows
+call .env.bat && npm run dev
 ```
 
 ## 📖 Guia Completo

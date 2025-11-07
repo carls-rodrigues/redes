@@ -1,9 +1,15 @@
-"use client"
+import * as React from "react"
 
 import { MessageCircle, Settings, Home, Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Button } from "./ui/button"
 
-export default function NavigationSidebar() {
+interface NavigationSidebarProps {
+  onNewChat?: () => void
+  onLogout?: () => void
+  onNewGroup?: () => void
+}
+
+export default function NavigationSidebar({ onNewChat, onLogout, onNewGroup }: NavigationSidebarProps) {
   return (
     <div className="w-16 bg-card border-r border-border flex flex-col items-center justify-between py-4 flex-shrink-0">
       {/* Logo/Brand Icon */}
@@ -19,14 +25,25 @@ export default function NavigationSidebar() {
         <Button variant="ghost" size="icon" className="text-muted-foreground hover:bg-muted">
           <MessageCircle className="w-5 h-5" strokeWidth={1.5} />
         </Button>
-        <Button variant="ghost" size="icon" className="text-muted-foreground hover:bg-muted">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="text-muted-foreground hover:bg-muted"
+          onClick={onNewGroup}
+          title="New Group"
+        >
           <Plus className="w-5 h-5" strokeWidth={1.5} />
         </Button>
       </div>
 
       {/* Settings and Avatar */}
       <div className="flex flex-col gap-3">
-        <Button variant="ghost" size="icon" className="text-muted-foreground hover:bg-muted">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="text-muted-foreground hover:bg-muted"
+          onClick={onLogout}
+        >
           <Settings className="w-5 h-5" strokeWidth={1.5} />
         </Button>
         <button className="w-8 h-8 rounded-md bg-muted hover:bg-muted/80 transition-colors cursor-pointer flex items-center justify-center text-xs font-medium text-foreground">
