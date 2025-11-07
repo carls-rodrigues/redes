@@ -45,8 +45,11 @@ const server = net.createServer((socket) => {
     console.log(`[${new Date().toISOString()}] Client disconnected: ${clientId}`);
   });
 
-  socket.on('error', (error) => {
-    console.error(`Socket error for ${clientId}:`, error);
+  socket.on('error', (error: any) => {
+    // EPIPE is a normal error when client disconnects abruptly, don't log it
+    if (error.code !== 'EPIPE') {
+      console.error(`Socket error for ${clientId}:`, error);
+    }
     handler.unregisterClient(clientId);
   });
 });

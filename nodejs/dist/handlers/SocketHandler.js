@@ -35,6 +35,9 @@ class SocketHandler {
                 case 'get_user_chats':
                     await this.handleGetUserChats(clientId, message);
                     break;
+                case 'get_chat':
+                    await this.handleGetChat(clientId, message);
+                    break;
                 case 'get_messages':
                     await this.handleGetMessages(clientId, message);
                     break;
@@ -172,6 +175,29 @@ class SocketHandler {
         }
         this.sendMessage(clientId, response);
     }
+    async handleGetChat(clientId, message) {
+        const client = this.clients.get(clientId);
+        if (!client?.session) {
+            return this.sendError(clientId, 'Not authenticated', message.request_id);
+        }
+        const { chatId } = message;
+        if (!chatId) {
+            return this.sendError(clientId, 'chatId required', message.request_id);
+        }
+        const chat = await services_1.chatService.getChat(chatId);
+        const participants = await services_1.chatService.getChatParticipants(chatId);
+        const response = {
+            status: 'ok',
+            chat: {
+                ...chat,
+                participants
+            }
+        };
+        if (message.request_id) {
+            response.request_id = message.request_id;
+        }
+        this.sendMessage(clientId, response);
+    }
     async handleGetMessages(clientId, message) {
         const client = this.clients.get(clientId);
         if (!client?.session) {
@@ -194,19 +220,23 @@ class SocketHandler {
     async handleSendMessage(clientId, message) {
         const client = this.clients.get(clientId);
         if (!client?.session) {
-            return this.sendError(clientId, 'Not authenticated');
+            return this.sendError(clientId, 'Not authenticated', message.request_id);
         }
         const { chat_id, content } = message;
         if (!chat_id || !content) {
-            return this.sendError(clientId, 'chat_id and content required');
+            return this.sendError(clientId, 'chat_id and content required', message.request_id);
         }
         const msg = await services_1.messageService.sendMessage(chat_id, client.session.user_id, content);
         // Send confirmation to sender
-        this.sendMessage(clientId, {
+        const response = {
             status: 'ok',
             message_id: msg.id,
             timestamp: msg.timestamp
-        });
+        };
+        if (message.request_id) {
+            response.request_id = message.request_id;
+        }
+        this.sendMessage(clientId, response);
         // Broadcast to other participants
         const participants = await services_1.chatService.getChatParticipants(chat_id);
         for (const participant of participants) {
@@ -257,10 +287,14 @@ class SocketHandler {
         }
         const chatId = await services_1.chatService.createOrGetDM(client.session.user_id, other_user_id);
         const chat = await services_1.chatService.getChat(chatId);
+        const participants = await services_1.chatService.getChatParticipants(chatId);
         const response = {
             status: 'ok',
             chat_id: chatId,
-            chat
+            chat: {
+                ...chat,
+                participants
+            }
         };
         if (message.request_id) {
             response.request_id = message.request_id;
@@ -269,11 +303,15 @@ class SocketHandler {
     }
     sendMessage(clientId, data) {
         const client = this.clients.get(clientId);
-        if (client && client.socket.writable) {
+        if (client && client.socket.writable && !client.socket.destroyed) {
             const json = JSON.stringify(data) + '\n';
             client.socket.write(json, (err) => {
-                if (err && err.code !== 'EPIPE') {
-                    console.error('Write error:', err);
+                if (err) {
+                    // Only log non-EPIPE errors as they can occur during normal disconnection
+                    const errorCode = err.code;
+                    if (errorCode !== 'EPIPE') {
+                        console.error(`Write error for ${clientId}:`, errorCode || err.message);
+                    }
                 }
             });
         }

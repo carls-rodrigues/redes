@@ -50,37 +50,39 @@ exports.UserService = UserService;
 class ChatService {
     async getUserChats(userId) {
         const query = `
-      SELECT cs.id, cs.type, cs.group_id,
-        (SELECT username FROM users WHERE id != ? AND id IN (
-          SELECT user_id FROM chat_participants WHERE chat_session_id = cs.id
-        ) LIMIT 1) as other_username,
-        (SELECT content FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_message,
-        (SELECT timestamp FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_message_time,
+      SELECT cs.id, cs.type, cs.group_id, cs.created_at,
+        (SELECT content FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_message_content,
+        (SELECT timestamp FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_message_timestamp,
         (SELECT sender_id FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_sender_id
       FROM chat_sessions cs
       WHERE cs.id IN (
         SELECT chat_session_id FROM chat_participants WHERE user_id = ?
       )
-      ORDER BY last_message_time DESC NULLS LAST
+      ORDER BY last_message_timestamp DESC NULLS LAST
     `;
         const stmt = Database_1.default.prepare(query);
-        const rows = stmt.all(userId, userId);
+        const rows = stmt.all(userId);
         return rows.map(chat => {
-            let name = 'Chat';
-            if (chat.type === 'group') {
-                name = `Grupo: ${chat.group_id}`;
-            }
-            else {
-                name = `Chat com ${chat.other_username || 'Usuário'}`;
-            }
+            const participants = this.getChatParticipantsSync(chat.id);
             return {
                 id: chat.id,
-                name,
-                last_message: chat.last_message || 'Nenhuma mensagem ainda',
-                last_message_time: chat.last_message_time,
-                last_sender: chat.last_sender_id
+                type: chat.type,
+                group_id: chat.group_id,
+                created_at: chat.created_at,
+                participants,
+                last_message: chat.last_message_content || 'Nenhuma mensagem ainda',
+                last_message_time: chat.last_message_timestamp
             };
         });
+    }
+    getChatParticipantsSync(chatId) {
+        const query = `
+      SELECT u.id, u.username FROM users u
+      JOIN chat_participants cp ON u.id = cp.user_id
+      WHERE cp.chat_session_id = ?
+    `;
+        const stmt = Database_1.default.prepare(query);
+        return stmt.all(chatId);
     }
     async getChat(chatId) {
         const stmt = Database_1.default.prepare('SELECT * FROM chat_sessions WHERE id = ?');

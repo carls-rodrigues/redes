@@ -1,4 +1,4 @@
-import { User, Session, Chat, Message } from '../types';
+import { User, Session, Message } from '../types';
 export declare class UserService {
     createUser(username: string, password: string): Promise<User>;
     getUserByUsername(username: string): Promise<User | undefined>;
@@ -8,7 +8,8 @@ export declare class UserService {
     searchUsers(query: string, excludeUserId?: string): Promise<User[]>;
 }
 export declare class ChatService {
-    getUserChats(userId: string): Promise<Chat[]>;
+    getUserChats(userId: string): Promise<any[]>;
+    private getChatParticipantsSync;
     getChat(chatId: string): Promise<any>;
     getChatParticipants(chatId: string): Promise<User[]>;
     createOrGetDM(userId1: string, userId2: string): Promise<string>;
