@@ -13,6 +13,11 @@ export declare class ChatService {
     getChat(chatId: string): Promise<any>;
     getChatParticipants(chatId: string): Promise<User[]>;
     createOrGetDM(userId1: string, userId2: string): Promise<string>;
+    createGroup(groupName: string, creatorId: string, memberIds: string[]): Promise<any>;
+    getGroup(groupId: string): Promise<any>;
+    addGroupMember(groupId: string, userId: string): Promise<void>;
+    removeGroupMember(groupId: string, userId: string): Promise<void>;
+    listGroups(): Promise<any[]>;
 }
 export declare class MessageService {
     sendMessage(chatId: string, senderId: string, content: string): Promise<Message>;

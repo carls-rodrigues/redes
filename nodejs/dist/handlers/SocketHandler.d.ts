@@ -16,6 +16,10 @@ export declare class SocketHandler {
     private handleSendMessage;
     private handleSearchUsers;
     private handleCreateDM;
+    private handleCreateGroup;
+    private handleListGroups;
+    private handleAddGroupMember;
+    private handleRemoveGroupMember;
     private sendMessage;
     private sendError;
     getConnectedUsers(): Set<string>;

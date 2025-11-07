@@ -59,6 +59,18 @@ export class SocketHandler {
         case 'create_dm':
           await this.handleCreateDM(clientId, message);
           break;
+        case 'create_group':
+          await this.handleCreateGroup(clientId, message);
+          break;
+        case 'list_groups':
+          await this.handleListGroups(clientId, message);
+          break;
+        case 'add_group_member':
+          await this.handleAddGroupMember(clientId, message);
+          break;
+        case 'remove_group_member':
+          await this.handleRemoveGroupMember(clientId, message);
+          break;
       }
     } catch (error) {
       this.sendError(clientId, 'Internal server error', message.request_id);
@@ -340,6 +352,119 @@ export class SocketHandler {
       response.request_id = message.request_id;
     }
     this.sendMessage(clientId, response);
+  }
+
+  private async handleCreateGroup(clientId: string, message: SocketMessage) {
+    const client = this.clients.get(clientId);
+    if (!client?.session) {
+      return this.sendError(clientId, 'Not authenticated', message.request_id);
+    }
+
+    const { group_name, member_ids } = message;
+    if (!group_name || !Array.isArray(member_ids)) {
+      return this.sendError(clientId, 'group_name and member_ids required', message.request_id);
+    }
+
+    const group = await chatService.createGroup(group_name, client.session.user_id, member_ids);
+    const response: any = {
+      status: 'ok',
+      group
+    };
+    if (message.request_id) {
+      response.request_id = message.request_id;
+    }
+    this.sendMessage(clientId, response);
+
+    // Notify all members about the new group
+    const allMembers = [client.session.user_id, ...member_ids];
+    for (const memberId of allMembers) {
+      const memberClientId = this.userSessions.get(memberId);
+      if (memberClientId) {
+        this.sendMessage(memberClientId, {
+          type: 'group:created',
+          payload: group
+        });
+      }
+    }
+  }
+
+  private async handleListGroups(clientId: string, message: SocketMessage) {
+    const client = this.clients.get(clientId);
+    if (!client?.session) {
+      return this.sendError(clientId, 'Not authenticated', message.request_id);
+    }
+
+    const groups = await chatService.listGroups();
+    const response: any = {
+      status: 'ok',
+      groups
+    };
+    if (message.request_id) {
+      response.request_id = message.request_id;
+    }
+    this.sendMessage(clientId, response);
+  }
+
+  private async handleAddGroupMember(clientId: string, message: SocketMessage) {
+    const client = this.clients.get(clientId);
+    if (!client?.session) {
+      return this.sendError(clientId, 'Not authenticated', message.request_id);
+    }
+
+    const { group_id, user_id } = message;
+    if (!group_id || !user_id) {
+      return this.sendError(clientId, 'group_id and user_id required', message.request_id);
+    }
+
+    await chatService.addGroupMember(group_id, user_id);
+    const response: any = {
+      status: 'ok',
+      message: 'Member added'
+    };
+    if (message.request_id) {
+      response.request_id = message.request_id;
+    }
+    this.sendMessage(clientId, response);
+
+    // Notify the new member
+    const memberClientId = this.userSessions.get(user_id);
+    if (memberClientId) {
+      this.sendMessage(memberClientId, {
+        type: 'group:member_added',
+        payload: { group_id }
+      });
+    }
+  }
+
+  private async handleRemoveGroupMember(clientId: string, message: SocketMessage) {
+    const client = this.clients.get(clientId);
+    if (!client?.session) {
+      return this.sendError(clientId, 'Not authenticated', message.request_id);
+    }
+
+    const { group_id, user_id } = message;
+    if (!group_id || !user_id) {
+      return this.sendError(clientId, 'group_id and user_id required', message.request_id);
+    }
+
+    await chatService.removeGroupMember(group_id, user_id);
+    const response: any = {
+      status: 'ok',
+      message: 'Member removed'
+    };
+    if (message.request_id) {
+      response.request_id = message.request_id;
+    }
+    this.sendMessage(clientId, response);
+
+    // Notify the removed member
+    const memberClientId = this.userSessions.get(user_id);
+    if (memberClientId) {
+      this.sendMessage(memberClientId, {
+        type: 'group:member_removed',
+        payload: { group_id }
+      });
+    }
   }
 
   private sendMessage(clientId: string, data: any) {

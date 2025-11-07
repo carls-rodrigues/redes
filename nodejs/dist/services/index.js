@@ -124,6 +124,65 @@ class ChatService {
         });
         return chatId;
     }
+    async createGroup(groupName, creatorId, memberIds) {
+        const groupId = (0, uuid_1.v4)();
+        const chatId = (0, uuid_1.v4)();
+        const createdAt = new Date().toISOString();
+        Database_1.default.transaction(() => {
+            // Create group
+            const insertGroup = Database_1.default.prepare('INSERT INTO groups (id, name, creator_id, created_at) VALUES (?, ?, ?, ?)');
+            insertGroup.run(groupId, groupName, creatorId, createdAt);
+            // Create chat session for group
+            const insertChat = Database_1.default.prepare('INSERT INTO chat_sessions (id, type, group_id, created_at) VALUES (?, ?, ?, ?)');
+            insertChat.run(chatId, 'group', groupId, createdAt);
+            // Add all members (including creator)
+            const allMembers = [creatorId, ...memberIds.filter(id => id !== creatorId)];
+            const insertParticipant = Database_1.default.prepare('INSERT INTO chat_participants (id, chat_session_id, user_id, joined_at) VALUES (?, ?, ?, ?)');
+            for (const memberId of allMembers) {
+                insertParticipant.run((0, uuid_1.v4)(), chatId, memberId, createdAt);
+            }
+        });
+        return {
+            group_id: groupId,
+            chat_id: chatId,
+            name: groupName,
+            creator_id: creatorId,
+            created_at: createdAt,
+            members: memberIds
+        };
+    }
+    async getGroup(groupId) {
+        const stmt = Database_1.default.prepare('SELECT * FROM groups WHERE id = ?');
+        return stmt.get(groupId);
+    }
+    async addGroupMember(groupId, userId) {
+        // Get chat_session_id for this group
+        const getChatStmt = Database_1.default.prepare('SELECT id FROM chat_sessions WHERE group_id = ?');
+        const chatSession = getChatStmt.get(groupId);
+        if (!chatSession)
+            throw new Error('Group not found');
+        const createdAt = new Date().toISOString();
+        const stmt = Database_1.default.prepare('INSERT INTO chat_participants (id, chat_session_id, user_id, joined_at) VALUES (?, ?, ?, ?)');
+        stmt.run((0, uuid_1.v4)(), chatSession.id, userId, createdAt);
+    }
+    async removeGroupMember(groupId, userId) {
+        // Get chat_session_id for this group
+        const getChatStmt = Database_1.default.prepare('SELECT id FROM chat_sessions WHERE group_id = ?');
+        const chatSession = getChatStmt.get(groupId);
+        if (!chatSession)
+            throw new Error('Group not found');
+        const stmt = Database_1.default.prepare('DELETE FROM chat_participants WHERE chat_session_id = ? AND user_id = ?');
+        stmt.run(chatSession.id, userId);
+    }
+    async listGroups() {
+        const stmt = Database_1.default.prepare(`
+      SELECT g.id, g.name, g.creator_id, g.created_at,
+        (SELECT COUNT(*) FROM chat_participants cp WHERE cp.chat_session_id = (SELECT id FROM chat_sessions WHERE group_id = g.id)) as member_count
+      FROM groups g
+      ORDER BY g.created_at DESC
+    `);
+        return stmt.all();
+    }
 }
 exports.ChatService = ChatService;
 class MessageService {
