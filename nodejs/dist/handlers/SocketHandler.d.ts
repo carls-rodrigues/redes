@@ -5,6 +5,7 @@ export declare class SocketHandler {
     private userSessions;
     constructor();
     registerClient(clientId: string, socket: Socket): void;
+    registerWebSocketClient(clientId: string, socket: Socket): void;
     unregisterClient(clientId: string): void;
     handleMessage(clientId: string, message: SocketMessage): Promise<void>;
     private handleAuth;

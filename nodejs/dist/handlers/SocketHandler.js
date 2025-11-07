@@ -8,7 +8,19 @@ class SocketHandler {
         this.userSessions = new Map(); // userId -> clientId
     }
     registerClient(clientId, socket) {
-        this.clients.set(clientId, { socket });
+        this.clients.set(clientId, { socket, isWebSocket: false });
+    }
+    registerWebSocketClient(clientId, socket) {
+        const sendMessage = (message) => {
+            const payload = JSON.stringify(message);
+            const payloadBuffer = Buffer.from(payload);
+            const frame = Buffer.alloc(2 + payloadBuffer.length);
+            frame[0] = 0x81; // FIN + Text frame
+            frame[1] = payloadBuffer.length; // Payload length (assuming < 126)
+            payloadBuffer.copy(frame, 2);
+            socket.write(frame);
+        };
+        this.clients.set(clientId, { socket, isWebSocket: true, sendMessage });
     }
     unregisterClient(clientId) {
         const client = this.clients.get(clientId);
@@ -71,26 +83,30 @@ class SocketHandler {
     }
     async handleAuth(clientId, message) {
         try {
-            const { userId } = message;
-            if (!userId) {
-                return this.sendError(clientId, 'userId required', message.request_id);
+            const { token } = message;
+            if (!token) {
+                return this.sendError(clientId, 'token required', message.request_id);
             }
-            const user = await services_1.userService.getUserById(userId);
+            const user = await services_1.userService.verifySession(token);
             if (!user) {
-                return this.sendError(clientId, 'User not found', message.request_id);
+                return this.sendError(clientId, 'Invalid session', message.request_id);
             }
             const client = this.clients.get(clientId);
             if (client) {
-                client.userId = userId;
-                // Create a new session for this socket connection
-                const session = await services_1.userService.createSession(userId, user.username);
+                client.userId = user.id;
+                // Create a session object for this connection
+                const session = {
+                    session_id: token,
+                    user_id: user.id,
+                    username: user.username,
+                    created_at: new Date().toISOString()
+                };
                 client.session = session;
-                this.userSessions.set(userId, clientId);
+                this.userSessions.set(user.id, clientId);
                 const response = {
                     status: 'ok',
-                    user_id: userId,
-                    username: user.username,
-                    session_id: session.session_id
+                    user: user,
+                    session: session
                 };
                 if (message.request_id) {
                     response.request_id = message.request_id;
@@ -125,9 +141,11 @@ class SocketHandler {
                 this.userSessions.set(user.id, clientId);
                 const response = {
                     status: 'ok',
-                    user_id: user.id,
-                    username: user.username,
-                    session_id: session.session_id
+                    user: {
+                        id: user.id,
+                        username: user.username
+                    },
+                    session: session
                 };
                 if (message.request_id) {
                     response.request_id = message.request_id;
@@ -415,7 +433,14 @@ class SocketHandler {
     }
     sendMessage(clientId, data) {
         const client = this.clients.get(clientId);
-        if (client && client.socket.writable && !client.socket.destroyed) {
+        if (!client)
+            return;
+        if (client.isWebSocket && client.sendMessage) {
+            // WebSocket client
+            client.sendMessage(data);
+        }
+        else if (client.socket.writable && !client.socket.destroyed) {
+            // TCP socket client
             const json = JSON.stringify(data) + '\n';
             client.socket.write(json, (err) => {
                 if (err) {

@@ -43,6 +43,16 @@ export class UserService {
     return { session_id: sessionId, user_id: userId, username, created_at: createdAt };
   }
 
+  async verifySession(sessionToken: string): Promise<User | null> {
+    const stmt = db.prepare(`
+      SELECT u.id, u.username, u.created_at
+      FROM users u
+      JOIN sessions s ON u.id = s.user_id
+      WHERE s.session_id = ?
+    `);
+    return stmt.get(sessionToken) as User | null;
+  }
+
   async searchUsers(query: string, excludeUserId?: string): Promise<User[]> {
     let sql = 'SELECT id, username FROM users WHERE username LIKE ?';
     const params: any[] = [`%${query}%`];

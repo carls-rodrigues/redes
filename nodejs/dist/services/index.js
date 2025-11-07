@@ -34,6 +34,15 @@ class UserService {
         stmt.run(sessionId, userId, createdAt);
         return { session_id: sessionId, user_id: userId, username, created_at: createdAt };
     }
+    async verifySession(sessionToken) {
+        const stmt = Database_1.default.prepare(`
+      SELECT u.id, u.username, u.created_at
+      FROM users u
+      JOIN sessions s ON u.id = s.user_id
+      WHERE s.session_id = ?
+    `);
+        return stmt.get(sessionToken);
+    }
     async searchUsers(query, excludeUserId) {
         let sql = 'SELECT id, username FROM users WHERE username LIKE ?';
         const params = [`%${query}%`];

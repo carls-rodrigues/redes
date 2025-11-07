@@ -6,16 +6,33 @@ interface ClientInfo {
   userId?: string;
   socket: Socket;
   session?: Session;
+  isWebSocket?: boolean;
+  sendMessage?: (message: any) => void;
 }
 
 export class SocketHandler {
   private clients: Map<string, ClientInfo> = new Map();
   private userSessions: Map<string, string> = new Map(); // userId -> clientId
+  private sendWebSocketMessage?: (socket: Socket, data: any) => void;
 
   constructor() {}
 
+  setSendWebSocketMessage(fn: (socket: Socket, data: any) => void) {
+    this.sendWebSocketMessage = fn;
+  }
+
   registerClient(clientId: string, socket: Socket) {
-    this.clients.set(clientId, { socket });
+    this.clients.set(clientId, { socket, isWebSocket: false });
+  }
+
+  registerWebSocketClient(clientId: string, socket: Socket) {
+    const sendMessage = (message: any) => {
+      if (this.sendWebSocketMessage) {
+        this.sendWebSocketMessage(socket, message);
+      }
+    };
+
+    this.clients.set(clientId, { socket, isWebSocket: true, sendMessage });
   }
 
   unregisterClient(clientId: string) {
@@ -80,29 +97,33 @@ export class SocketHandler {
 
   private async handleAuth(clientId: string, message: SocketMessage) {
     try {
-      const { userId } = message;
-      if (!userId) {
-        return this.sendError(clientId, 'userId required', message.request_id);
+      const { token } = message;
+      if (!token) {
+        return this.sendError(clientId, 'token required', message.request_id);
       }
 
-      const user = await userService.getUserById(userId);
+      const user = await userService.verifySession(token);
       if (!user) {
-        return this.sendError(clientId, 'User not found', message.request_id);
+        return this.sendError(clientId, 'Invalid session', message.request_id);
       }
 
       const client = this.clients.get(clientId);
       if (client) {
-        client.userId = userId;
-        // Create a new session for this socket connection
-        const session = await userService.createSession(userId, user.username);
+        client.userId = user.id;
+        // Create a session object for this connection
+        const session = {
+          session_id: token,
+          user_id: user.id,
+          username: user.username,
+          created_at: new Date().toISOString()
+        };
         client.session = session;
-        this.userSessions.set(userId, clientId);
+        this.userSessions.set(user.id, clientId);
 
         const response: any = {
           status: 'ok',
-          user_id: userId,
-          username: user.username,
-          session_id: session.session_id
+          user: user,
+          session: session
         };
         if (message.request_id) {
           response.request_id = message.request_id;
@@ -141,9 +162,11 @@ export class SocketHandler {
 
         const response: any = {
           status: 'ok',
-          user_id: user.id,
-          username: user.username,
-          session_id: session.session_id
+          user: {
+            id: user.id,
+            username: user.username
+          },
+          session: session
         };
         if (message.request_id) {
           response.request_id = message.request_id;
@@ -281,24 +304,22 @@ export class SocketHandler {
     }
     this.sendMessage(clientId, response);
 
-    // Broadcast to other participants
+    // Broadcast message to ALL participants (including sender)
     const participants = await chatService.getChatParticipants(chat_id);
     for (const participant of participants) {
-      if (participant.id !== client.session.user_id) {
-        const receiverClientId = this.userSessions.get(participant.id);
-        if (receiverClientId) {
-          this.sendMessage(receiverClientId, {
-            type: 'message:new',
-            payload: {
-              id: msg.id,
-              chat_session_id: chat_id,
-              sender_id: msg.sender_id,
-              sender_username: client.session.username,
-              content: msg.content,
-              timestamp: msg.timestamp
-            }
-          });
-        }
+      const receiverClientId = this.userSessions.get(participant.id);
+      if (receiverClientId) {
+        this.sendMessage(receiverClientId, {
+          type: 'message:new',
+          payload: {
+            id: msg.id,
+            chat_session_id: chat_id,
+            sender_id: msg.sender_id,
+            sender_username: client.session.username,
+            content: msg.content,
+            timestamp: msg.timestamp
+          }
+        });
       }
     }
   }
@@ -469,7 +490,13 @@ export class SocketHandler {
 
   private sendMessage(clientId: string, data: any) {
     const client = this.clients.get(clientId);
-    if (client && client.socket.writable && !client.socket.destroyed) {
+    if (!client) return;
+
+    if (client.isWebSocket && client.sendMessage) {
+      // WebSocket client
+      client.sendMessage(data);
+    } else if (client.socket.writable && !client.socket.destroyed) {
+      // TCP socket client
       const json = JSON.stringify(data) + '\n';
       client.socket.write(json, (err) => {
         if (err) {
