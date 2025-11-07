@@ -314,8 +314,21 @@ class ChatApp {
         chatElement.classList.add('bg-primary', 'text-primary-foreground');
       }
 
+      // Determine display name: group name for groups, other person for DMs
+      let displayName;
+      // For DM, show the other person's name (not current user)
+      if (chat.type === 'dm') {
+        displayName = chat.participants
+          .filter(p => p.id !== this.currentUser.id)
+          .map(p => p.username)
+          .join(', ') || chat.participants.map(p => p.username).join(', ');
+      } else {
+        // For groups, show the group name or "Unnamed Group"
+        displayName = chat.group_name || 'Unnamed Group';
+      }
+
       chatElement.innerHTML = `
-        <div class="font-medium mb-1">${chat.participants.map(p => p.username).join(', ')}</div>
+        <div class="font-medium mb-1">${displayName}</div>
         <div class="text-sm text-muted-foreground truncate">${chat.last_message}</div>
       `;
 
@@ -326,7 +339,21 @@ class ChatApp {
 
   async selectChat(chat) {
     this.currentChat = chat;
-    document.getElementById('chat-title').textContent = chat.participants.map(p => p.username).join(', ');
+
+    // Determine display name: group name for groups, other person for DMs
+    let displayName;
+    // For DM, show the other person's name (not current user)
+    if (chat.type === 'dm') {
+      displayName = chat.participants
+        .filter(p => p.id !== this.currentUser.id)
+        .map(p => p.username)
+        .join(', ') || chat.participants.map(p => p.username).join(', ');
+    } else {
+      // For groups, show the group name or "Unnamed Group"
+      displayName = chat.group_name || 'Unnamed Group';
+    }
+
+    document.getElementById('chat-title').textContent = displayName;
 
     // Update UI - hide welcome, show messages and input
     document.getElementById('welcome-screen').classList.add('hidden');

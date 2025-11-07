@@ -75,8 +75,10 @@ export class ChatService {
       SELECT cs.id, cs.type, cs.group_id, cs.created_at,
         (SELECT content FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_message_content,
         (SELECT timestamp FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_message_timestamp,
-        (SELECT sender_id FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_sender_id
+        (SELECT sender_id FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_sender_id,
+        g.name as group_name
       FROM chat_sessions cs
+      LEFT JOIN groups g ON cs.group_id = g.id
       WHERE cs.id IN (
         SELECT chat_session_id FROM chat_participants WHERE user_id = ?
       )
@@ -93,6 +95,7 @@ export class ChatService {
         id: chat.id,
         type: chat.type,
         group_id: chat.group_id,
+        group_name: chat.group_name,
         created_at: chat.created_at,
         participants,
         last_message: chat.last_message_content || 'Nenhuma mensagem ainda',
