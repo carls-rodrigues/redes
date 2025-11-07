@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   backend:
@@ -15,7 +15,13 @@ services:
       - backend-data:/app/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "node", "-e", "require('net').connect(5000, 'localhost', function() { process.exit(0); }).on('error', function() { process.exit(1); })"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('net').connect(5000, 'localhost', function() { process.exit(0); }).on('error', function() { process.exit(1); })",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
