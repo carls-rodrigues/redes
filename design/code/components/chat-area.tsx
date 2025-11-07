@@ -2,6 +2,8 @@
 
 import { Send, Paperclip, MoreVertical } from "lucide-react"
 import { useState, useRef, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import ChatMessage from "./chat-message"
 
 const MOCK_MESSAGES = [
@@ -81,20 +83,20 @@ export default function ChatArea({ conversationId }: ChatAreaProps) {
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-white">
+    <div className="flex-1 flex flex-col bg-background">
       {/* Header */}
-      <div className="h-16 border-b border-[#E5E5EA] px-6 flex items-center justify-between flex-shrink-0">
+      <div className="h-16 border-b border-border px-6 flex items-center justify-between flex-shrink-0">
         <div>
-          <h1 className="text-base font-medium text-[#1C1C1E]">Design System Discussion</h1>
-          <p className="text-xs text-[#8E8E93]">3 participants</p>
+          <h1 className="text-sm font-semibold text-foreground">Design System Discussion</h1>
+          <p className="text-xs text-muted-foreground">3 participants</p>
         </div>
-        <button className="p-2 hover:bg-[#F5F5F7] rounded-lg transition-colors">
-          <MoreVertical className="w-5 h-5 text-[#8E8E93]" strokeWidth={1.5} />
-        </button>
+        <Button variant="ghost" size="icon" className="h-8 w-8">
+          <MoreVertical className="w-4 h-4" strokeWidth={1.5} />
+        </Button>
       </div>
 
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
         {messages.map((message) => (
           <ChatMessage
             key={message.id}
@@ -107,27 +109,24 @@ export default function ChatArea({ conversationId }: ChatAreaProps) {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-[#E5E5EA] px-6 py-4 flex-shrink-0">
-        <div className="flex gap-3 items-end">
-          <button className="p-2 hover:bg-[#F5F5F7] rounded-lg transition-colors flex-shrink-0">
-            <Paperclip className="w-5 h-5 text-[#8E8E93]" strokeWidth={1.5} />
-          </button>
+      <div className="border-t border-border px-6 py-4 flex-shrink-0">
+        <div className="flex gap-2 items-end">
+          <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+            <Paperclip className="w-4 h-4" strokeWidth={1.5} />
+          </Button>
 
           <div className="flex-1 flex gap-2">
-            <input
+            <Input
               type="text"
-              placeholder="Type your message..."
+              placeholder="Message..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSend()}
-              className="flex-1 bg-[#F5F5F7] text-[#1C1C1E] placeholder-[#8E8E93] rounded-full px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#3B4FE4] focus:ring-offset-0"
+              className="h-9 text-sm"
             />
-            <button
-              onClick={handleSend}
-              className="p-2.5 bg-[#3B4FE4] hover:bg-[#2A3AC4] text-white rounded-full transition-colors flex-shrink-0"
-            >
-              <Send className="w-5 h-5" strokeWidth={1.5} />
-            </button>
+            <Button onClick={handleSend} size="icon" className="h-9 w-9 flex-shrink-0">
+              <Send className="w-4 h-4" strokeWidth={1.5} />
+            </Button>
           </div>
         </div>
       </div>

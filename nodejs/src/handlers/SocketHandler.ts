@@ -276,9 +276,10 @@ export class SocketHandler {
         const receiverClientId = this.userSessions.get(participant.id);
         if (receiverClientId) {
           this.sendMessage(receiverClientId, {
-            chat_id,
-            message: {
+            type: 'message:new',
+            payload: {
               id: msg.id,
+              chat_session_id: chat_id,
               sender_id: msg.sender_id,
               sender_username: client.session.username,
               content: msg.content,
