@@ -331,8 +331,22 @@ export class SocketHandler {
     }
 
     const { query } = message;
-    if (!query || typeof query !== 'string') {
-      return this.sendError(clientId, 'query required', message.request_id);
+    if (query === undefined || (typeof query === 'string' && query === '')) {
+      // Allow empty query to search all users
+      const users = await userService.searchUsers('%', client.session.user_id);
+      const response: any = {
+        status: 'ok',
+        users
+      };
+      if (message.request_id) {
+        response.request_id = message.request_id;
+      }
+      this.sendMessage(clientId, response);
+      return;
+    }
+
+    if (typeof query !== 'string') {
+      return this.sendError(clientId, 'query must be a string', message.request_id);
     }
 
     const users = await userService.searchUsers(query, client.session.user_id);

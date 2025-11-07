@@ -220,6 +220,36 @@
         </div>
     </div>
 
+    <!-- Create Group Modal -->
+    <div id="create-group-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-card rounded-lg shadow-lg max-w-md w-full mx-4">
+            <div class="p-6 border-b">
+                <h2 class="text-xl font-bold">Create Group</h2>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Group Name</label>
+                    <input type="text" id="group-name-input" placeholder="Enter group name..."
+                           class="w-full px-4 py-2 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Select Members</label>
+                    <div id="members-list" class="border border-input rounded-md bg-background max-h-40 overflow-y-auto">
+                        <!-- Members will be listed here as checkboxes -->
+                    </div>
+                </div>
+            </div>
+            <div class="p-6 border-t flex gap-3">
+                <button id="cancel-group-btn" class="flex-1 px-4 py-2 border border-input rounded-md hover:bg-muted transition-colors">
+                    Cancel
+                </button>
+                <button id="create-group-btn" class="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors">
+                    Create
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="/app.js"></script>
 </body>
 </html>

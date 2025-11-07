@@ -119,6 +119,13 @@ class ChatApp {
       case 'message':
         // Message sent successfully
         break;
+      case 'search_users':
+        this.populateMembersList(response.users);
+        break;
+      case 'create_group':
+        this.loadChats();
+        alert('Group created successfully!');
+        break;
     }
   }
 
@@ -194,8 +201,12 @@ class ChatApp {
 
     // Chat
     document.getElementById('logout-btn').addEventListener('click', () => this.logout());
-    document.getElementById('new-chat-btn').addEventListener('click', () => this.createNewChat());
+    document.getElementById('new-chat-btn').addEventListener('click', () => this.openGroupModal());
     document.getElementById('send-btn').addEventListener('click', () => this.sendMessage());
+
+    // Group modal
+    document.getElementById('cancel-group-btn').addEventListener('click', () => this.closeGroupModal());
+    document.getElementById('create-group-btn').addEventListener('click', () => this.submitCreateGroup());
 
     // Enter key in message input
     document.getElementById('message-text').addEventListener('keypress', (e) => {
@@ -440,8 +451,47 @@ class ChatApp {
   }
 
   createNewChat() {
-    // For now, just show an alert
-    alert('New chat feature coming soon! For now, chats are created automatically when you message someone.');
+    this.openGroupModal();
+  }
+
+  async openGroupModal() {
+    document.getElementById('create-group-modal').classList.remove('hidden');
+    // Load all users to display as members (after modal is visible)
+    await new Promise(resolve => setTimeout(resolve, 100));
+    this.sendWebSocketMessage({
+      type: 'search_users',
+      query: ''  // Empty query to get all users
+    });
+  }
+
+  closeGroupModal() {
+    document.getElementById('create-group-modal').classList.add('hidden');
+    document.getElementById('group-name-input').value = '';
+    document.getElementById('members-list').innerHTML = '';
+  }
+
+  async submitCreateGroup() {
+    const groupName = document.getElementById('group-name-input').value.trim();
+    const checkboxes = document.querySelectorAll('#members-list input[type="checkbox"]:checked');
+    const memberIds = Array.from(checkboxes).map(cb => cb.value);  // Keep as strings (UUIDs)
+
+    if (!groupName) {
+      alert('Please enter a group name');
+      return;
+    }
+
+    if (memberIds.length === 0) {
+      alert('Please select at least one member');
+      return;
+    }
+
+    this.sendWebSocketMessage({
+      type: 'create_group',
+      group_name: groupName,
+      member_ids: memberIds
+    });
+
+    this.closeGroupModal();
   }
 
   showError(elementId, message) {
@@ -453,6 +503,24 @@ class ChatApp {
   showSuccess(message) {
     // For now, just alert
     alert(message);
+  }
+
+  populateMembersList(users) {
+    const membersList = document.getElementById('members-list');
+    membersList.innerHTML = '';
+
+    // Filter out current user
+    const otherUsers = users.filter(user => user.id !== this.currentUser.id);
+
+    otherUsers.forEach(user => {
+      const label = document.createElement('label');
+      label.className = 'flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/50 transition-colors';
+      label.innerHTML = `
+        <input type="checkbox" value="${user.id}" class="w-4 h-4 rounded border-input">
+        <span class="flex-1">${user.username}</span>
+      `;
+      membersList.appendChild(label);
+    });
   }
 
   clearErrors() {
