@@ -76,13 +76,17 @@ export class ChatService {
         (SELECT content FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_message_content,
         (SELECT timestamp FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_message_timestamp,
         (SELECT sender_id FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_sender_id,
-        g.name as group_name
+        g.name as group_name,
+        COALESCE(
+          (SELECT timestamp FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1),
+          cs.created_at
+        ) as last_activity_time
       FROM chat_sessions cs
       LEFT JOIN groups g ON cs.group_id = g.id
       WHERE cs.id IN (
         SELECT chat_session_id FROM chat_participants WHERE user_id = ?
       )
-      ORDER BY last_message_timestamp DESC NULLS LAST
+      ORDER BY last_activity_time DESC NULLS LAST
     `;
 
     const stmt = db.prepare(query);

@@ -190,7 +190,9 @@ class ChatApp {
 
     container.appendChild(messageElement);
     container.scrollTop = container.scrollHeight;
-  } bindEvents() {
+  }
+
+  bindEvents() {
     // Auth tabs
     document.getElementById('login-tab').addEventListener('click', () => this.switchTab('login'));
     document.getElementById('register-tab').addEventListener('click', () => this.switchTab('register'));
@@ -264,7 +266,9 @@ class ChatApp {
       username: username,
       password: password
     });
-  } logout() {
+  }
+
+  logout() {
     this.currentUser = null;
     this.currentChat = null;
     localStorage.removeItem('user');
@@ -298,7 +302,9 @@ class ChatApp {
     this.sendWebSocketMessage({
       type: 'get_user_chats'
     });
-  } renderChats() {
+  }
+
+  renderChats() {
     const container = document.getElementById('conversations-list');
     container.innerHTML = '';
 
@@ -466,7 +472,9 @@ class ChatApp {
     this.sendWebSocketMessage({
       type: 'get_user_chats'
     });
-  } showAuth() {
+  }
+
+  showAuth() {
     document.getElementById('auth-screen').classList.remove('hidden');
     document.getElementById('chat-screen').classList.add('hidden');
   }
