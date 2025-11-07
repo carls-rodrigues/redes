@@ -42,20 +42,29 @@ const server = net.createServer((socket) => {
     const clientId = (0, uuid_1.v4)();
     handler.registerClient(clientId, socket);
     console.log(`[${new Date().toISOString()}] Client connected: ${clientId}`);
+    let buffer = '';
     socket.on('data', async (data) => {
-        try {
-            const message = JSON.parse(data.toString());
-            await handler.handleMessage(clientId, message);
-        }
-        catch (error) {
-            if (error instanceof SyntaxError) {
-                socket.write(JSON.stringify({
-                    status: 'error',
-                    message: 'Invalid JSON format'
-                }));
+        buffer += data.toString();
+        // Process complete lines (separated by \n)
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+        for (const line of lines) {
+            if (!line.trim())
+                continue;
+            try {
+                const message = JSON.parse(line);
+                await handler.handleMessage(clientId, message);
             }
-            else {
-                console.error(`Error processing message from ${clientId}:`, error);
+            catch (error) {
+                if (error instanceof SyntaxError) {
+                    socket.write(JSON.stringify({
+                        status: 'error',
+                        message: 'Invalid JSON format'
+                    }) + '\n');
+                }
+                else {
+                    console.error(`Error processing message from ${clientId}:`, error);
+                }
             }
         }
     });

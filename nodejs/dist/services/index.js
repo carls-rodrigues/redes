@@ -34,6 +34,17 @@ class UserService {
         stmt.run(sessionId, userId, createdAt);
         return { session_id: sessionId, user_id: userId, username, created_at: createdAt };
     }
+    async searchUsers(query, excludeUserId) {
+        let sql = 'SELECT id, username FROM users WHERE username LIKE ?';
+        const params = [`%${query}%`];
+        if (excludeUserId) {
+            sql += ' AND id != ?';
+            params.push(excludeUserId);
+        }
+        sql += ' LIMIT 10';
+        const stmt = Database_1.default.prepare(sql);
+        return stmt.all(...params);
+    }
 }
 exports.UserService = UserService;
 class ChatService {

@@ -7,11 +7,14 @@ export declare class SocketHandler {
     registerClient(clientId: string, socket: Socket): void;
     unregisterClient(clientId: string): void;
     handleMessage(clientId: string, message: SocketMessage): Promise<void>;
+    private handleAuth;
     private handleLogin;
     private handleRegister;
     private handleGetUserChats;
     private handleGetMessages;
     private handleSendMessage;
+    private handleSearchUsers;
+    private handleCreateDM;
     private sendMessage;
     private sendError;
     getConnectedUsers(): Set<string>;

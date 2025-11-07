@@ -32,6 +32,9 @@ export class SocketHandler {
 
     try {
       switch (message.type) {
+        case 'auth':
+          await this.handleAuth(clientId, message);
+          break;
         case 'login':
           await this.handleLogin(clientId, message);
           break;
@@ -47,10 +50,53 @@ export class SocketHandler {
         case 'message':
           await this.handleSendMessage(clientId, message);
           break;
+        case 'search_users':
+          await this.handleSearchUsers(clientId, message);
+          break;
+        case 'create_dm':
+          await this.handleCreateDM(clientId, message);
+          break;
       }
     } catch (error) {
-      this.sendError(clientId, 'Internal server error');
+      this.sendError(clientId, 'Internal server error', message.request_id);
       console.error('Error handling message:', error);
+    }
+  }
+
+  private async handleAuth(clientId: string, message: SocketMessage) {
+    try {
+      const { userId } = message;
+      if (!userId) {
+        return this.sendError(clientId, 'userId required', message.request_id);
+      }
+
+      const user = await userService.getUserById(userId);
+      if (!user) {
+        return this.sendError(clientId, 'User not found', message.request_id);
+      }
+
+      const client = this.clients.get(clientId);
+      if (client) {
+        client.userId = userId;
+        // Create a new session for this socket connection
+        const session = await userService.createSession(userId, user.username);
+        client.session = session;
+        this.userSessions.set(userId, clientId);
+
+        const response: any = {
+          status: 'ok',
+          user_id: userId,
+          username: user.username,
+          session_id: session.session_id
+        };
+        if (message.request_id) {
+          response.request_id = message.request_id;
+        }
+        this.sendMessage(clientId, response);
+      }
+    } catch (error) {
+      console.error('Auth error:', error);
+      this.sendError(clientId, 'Authentication failed', message.request_id);
     }
   }
 
@@ -58,17 +104,17 @@ export class SocketHandler {
     try {
       const { username, password } = message;
       if (!username || !password) {
-        return this.sendError(clientId, 'Username and password required');
+        return this.sendError(clientId, 'Username and password required', message.request_id);
       }
 
       const user = await userService.getUserByUsername(username);
       if (!user) {
-        return this.sendError(clientId, 'Invalid credentials');
+        return this.sendError(clientId, 'Invalid credentials', message.request_id);
       }
 
       const isValid = await userService.verifyPassword(password, user.password!);
       if (!isValid) {
-        return this.sendError(clientId, 'Invalid credentials');
+        return this.sendError(clientId, 'Invalid credentials', message.request_id);
       }
 
       const session = await userService.createSession(user.id, username);
@@ -78,23 +124,27 @@ export class SocketHandler {
         client.session = session;
         this.userSessions.set(user.id, clientId);
 
-        this.sendMessage(clientId, {
+        const response: any = {
           status: 'ok',
           user_id: user.id,
           username: user.username,
           session_id: session.session_id
-        });
+        };
+        if (message.request_id) {
+          response.request_id = message.request_id;
+        }
+        this.sendMessage(clientId, response);
       }
     } catch (error) {
       console.error(`Login error:`, error);
-      this.sendError(clientId, 'Login failed');
+      this.sendError(clientId, 'Login failed', message.request_id);
     }
   }
 
   private async handleRegister(clientId: string, message: SocketMessage) {
     const { username, password } = message;
     if (!username || !password) {
-      return this.sendError(clientId, 'Username and password required');
+      return this.sendError(clientId, 'Username and password required', message.request_id);
     }
 
     try {
@@ -107,16 +157,20 @@ export class SocketHandler {
         client.session = session;
         this.userSessions.set(user.id, clientId);
 
-        this.sendMessage(clientId, {
+        const response: any = {
           status: 'registered',
           user_id: user.id,
           username: user.username,
           session_id: session.session_id
-        });
+        };
+        if (message.request_id) {
+          response.request_id = message.request_id;
+        }
+        this.sendMessage(clientId, response);
       }
     } catch (error: any) {
       if (error.message.includes('UNIQUE constraint failed')) {
-        return this.sendError(clientId, 'Username already exists');
+        return this.sendError(clientId, 'Username already exists', message.request_id);
       }
       throw error;
     }
@@ -125,32 +179,40 @@ export class SocketHandler {
   private async handleGetUserChats(clientId: string, message: SocketMessage) {
     const client = this.clients.get(clientId);
     if (!client?.session) {
-      return this.sendError(clientId, 'Not authenticated');
+      return this.sendError(clientId, 'Not authenticated', message.request_id);
     }
 
     const chats = await chatService.getUserChats(client.session.user_id);
-    this.sendMessage(clientId, {
+    const response: any = {
       status: 'ok',
       chats
-    });
+    };
+    if (message.request_id) {
+      response.request_id = message.request_id;
+    }
+    this.sendMessage(clientId, response);
   }
 
   private async handleGetMessages(clientId: string, message: SocketMessage) {
     const client = this.clients.get(clientId);
     if (!client?.session) {
-      return this.sendError(clientId, 'Not authenticated');
+      return this.sendError(clientId, 'Not authenticated', message.request_id);
     }
 
     const { chat_id } = message;
     if (!chat_id) {
-      return this.sendError(clientId, 'chat_id required');
+      return this.sendError(clientId, 'chat_id required', message.request_id);
     }
 
     const messages = await messageService.getMessages(chat_id);
-    this.sendMessage(clientId, {
+    const response: any = {
       status: 'ok',
       messages
-    });
+    };
+    if (message.request_id) {
+      response.request_id = message.request_id;
+    }
+    this.sendMessage(clientId, response);
   }
 
   private async handleSendMessage(clientId: string, message: SocketMessage) {
@@ -194,16 +256,71 @@ export class SocketHandler {
     }
   }
 
+  private async handleSearchUsers(clientId: string, message: SocketMessage) {
+    const client = this.clients.get(clientId);
+    if (!client?.session) {
+      return this.sendError(clientId, 'Not authenticated', message.request_id);
+    }
+
+    const { query } = message;
+    if (!query || typeof query !== 'string') {
+      return this.sendError(clientId, 'query required', message.request_id);
+    }
+
+    const users = await userService.searchUsers(query, client.session.user_id);
+    const response: any = {
+      status: 'ok',
+      users
+    };
+    if (message.request_id) {
+      response.request_id = message.request_id;
+    }
+    this.sendMessage(clientId, response);
+  }
+
+  private async handleCreateDM(clientId: string, message: SocketMessage) {
+    const client = this.clients.get(clientId);
+    if (!client?.session) {
+      return this.sendError(clientId, 'Not authenticated', message.request_id);
+    }
+
+    const { other_user_id } = message;
+    if (!other_user_id) {
+      return this.sendError(clientId, 'other_user_id required', message.request_id);
+    }
+
+    const chatId = await chatService.createOrGetDM(client.session.user_id, other_user_id);
+    const chat = await chatService.getChat(chatId);
+
+    const response: any = {
+      status: 'ok',
+      chat_id: chatId,
+      chat
+    };
+    if (message.request_id) {
+      response.request_id = message.request_id;
+    }
+    this.sendMessage(clientId, response);
+  }
+
   private sendMessage(clientId: string, data: any) {
     const client = this.clients.get(clientId);
-    if (client) {
-      const json = JSON.stringify(data);
-      client.socket.write(json);
+    if (client && client.socket.writable) {
+      const json = JSON.stringify(data) + '\n';
+      client.socket.write(json, (err) => {
+        if (err && (err as any).code !== 'EPIPE') {
+          console.error('Write error:', err);
+        }
+      });
     }
   }
 
-  private sendError(clientId: string, error: string) {
-    this.sendMessage(clientId, { status: 'error', message: error });
+  private sendError(clientId: string, error: string, requestId?: string) {
+    const response: any = { status: 'error', message: error };
+    if (requestId) {
+      response.request_id = requestId;
+    }
+    this.sendMessage(clientId, response);
   }
 
   getConnectedUsers(): Set<string> {

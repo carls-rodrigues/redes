@@ -42,6 +42,21 @@ export class UserService {
 
     return { session_id: sessionId, user_id: userId, username, created_at: createdAt };
   }
+
+  async searchUsers(query: string, excludeUserId?: string): Promise<User[]> {
+    let sql = 'SELECT id, username FROM users WHERE username LIKE ?';
+    const params: any[] = [`%${query}%`];
+
+    if (excludeUserId) {
+      sql += ' AND id != ?';
+      params.push(excludeUserId);
+    }
+
+    sql += ' LIMIT 10';
+
+    const stmt = db.prepare(sql);
+    return stmt.all(...params) as User[];
+  }
 }
 
 export class ChatService {
