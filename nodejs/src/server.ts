@@ -75,22 +75,50 @@ server.listen(PORT, () => {
 // NO REST API endpoints - all communication via WebSocket
 const httpServer = http.createServer((req, res) => {
   const parsedUrl = url.parse(req.url || '', true);
-  const pathname = parsedUrl.pathname || '/';
+  let pathname = parsedUrl.pathname || '/';
 
-  // Serve static files
-  if (pathname === '/' || pathname === '/index.html') {
-    serveFile(res, 'index.html', 'text/html');
-  } else if (pathname === '/chat.html') {
-    serveFile(res, 'chat.html', 'text/html');
-  } else if (pathname === '/style.css') {
-    serveFile(res, 'style.css', 'text/css');
-  } else if (pathname === '/app.js') {
-    serveFile(res, 'app.js', 'application/javascript');
-  } else {
-    res.writeHead(404);
-    res.end('Not Found');
+  // Default to index.html
+  if (pathname === '/') pathname = '/index.html';
+
+  const filePath = path.join(process.cwd(), 'public', pathname);
+  
+  // Prevent directory traversal attacks
+  if (!filePath.startsWith(path.join(process.cwd(), 'public'))) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
   }
+
+  fs.readFile(filePath, (err, data) => {
+    if (err) {
+      res.writeHead(404);
+      res.end('Not Found');
+      return;
+    }
+
+    const ext = path.extname(filePath).toLowerCase();
+    const mime: Record<string, string> = {
+      '.html': 'text/html',
+      '.css': 'text/css',
+      '.js': 'application/javascript',
+      '.json': 'application/json',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.svg': 'image/svg+xml',
+      '.ico': 'image/x-icon'
+    };
+
+    res.writeHead(200, {
+      'Content-Type': mime[ext] || 'application/octet-stream',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    res.end(data);
+  });
 });
+
 
 // Handle WebSocket upgrades  
 httpServer.on('upgrade', (req, socket, head) => {
@@ -110,6 +138,7 @@ httpServer.listen(HTTP_PORT, () => {
 
 function serveFile(res: http.ServerResponse, filename: string, contentType: string) {
   const filePath = path.join(__dirname, '../public', filename);
+  console.log(`Serving file: ${filePath}`);
 
   fs.readFile(filePath, (err, data) => {
     if (err) {
@@ -117,8 +146,12 @@ function serveFile(res: http.ServerResponse, filename: string, contentType: stri
       res.end('File not found');
       return;
     }
-
-    res.writeHead(200, { 'Content-Type': contentType });
+    res.writeHead(200, {
+      'Content-Type': contentType,
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
     res.end(data);
   });
 }

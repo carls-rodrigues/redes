@@ -1,4 +1,3 @@
-// RedES Chat - Web Frontend with WebSockets
 class ChatApp {
   constructor() {
     this.currentUser = null;
