@@ -48,6 +48,8 @@ const handler = new SocketHandler_1.SocketHandler();
 const userService = new services_1.UserService();
 const chatService = new services_1.ChatService();
 const messageService = new services_1.MessageService();
+// Will be set after defining sendWebSocketMessage function
+let sendWebSocketMessageFn;
 const server = net.createServer((socket) => {
     const clientId = (0, uuid_1.v4)();
     handler.registerClient(clientId, socket);
@@ -93,7 +95,8 @@ const server = net.createServer((socket) => {
 server.listen(PORT, () => {
     console.log(`Socket server listening on port ${PORT}`);
 });
-// HTTP Server for Web Interface
+// HTTP Server for Static Files ONLY
+// NO REST API endpoints - all communication via WebSocket
 const httpServer = http.createServer((req, res) => {
     const parsedUrl = url.parse(req.url || '', true);
     const pathname = parsedUrl.pathname || '/';
@@ -110,15 +113,12 @@ const httpServer = http.createServer((req, res) => {
     else if (pathname === '/app.js') {
         serveFile(res, 'app.js', 'application/javascript');
     }
-    else if (pathname.startsWith('/api/')) {
-        handleAPIRequest(req, res, parsedUrl);
-    }
     else {
         res.writeHead(404);
         res.end('Not Found');
     }
 });
-// Handle WebSocket upgrades
+// Handle WebSocket upgrades  
 httpServer.on('upgrade', (req, socket, head) => {
     const pathname = url.parse(req.url || '').pathname || '/';
     if (pathname === '/ws') {
@@ -127,6 +127,10 @@ httpServer.on('upgrade', (req, socket, head) => {
     else {
         socket.destroy();
     }
+});
+httpServer.listen(HTTP_PORT, () => {
+    console.log(`HTTP server (static files only) listening on port ${HTTP_PORT}`);
+    console.log(`Open http://localhost:${HTTP_PORT} in your browser`);
 });
 function serveFile(res, filename, contentType) {
     const filePath = path.join(__dirname, '../public', filename);
@@ -141,282 +145,146 @@ function serveFile(res, filename, contentType) {
     });
 }
 function handleWebSocketUpgrade(req, socket, head) {
-    const websocketKey = req.headers['sec-websocket-key'];
-    if (!websocketKey) {
+    const key = req.headers['sec-websocket-key'];
+    if (!key) {
+        console.error('No WebSocket key provided');
         socket.destroy();
         return;
     }
-    // Generate WebSocket accept key
-    const acceptKey = crypto.createHash('sha1')
-        .update(websocketKey + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')
+    // Generate accept token according to RFC 6455
+    const acceptToken = crypto
+        .createHash('sha1')
+        .update(key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')
         .digest('base64');
-    // Send WebSocket handshake response
-    const response = [
-        'HTTP/1.1 101 Switching Protocols',
-        'Upgrade: websocket',
-        'Connection: Upgrade',
-        `Sec-WebSocket-Accept: ${acceptKey}`,
-        '',
-        ''
-    ].join('\r\n');
+    // Build HTTP upgrade response with proper CRLF line endings
+    const response = `HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${acceptToken}\r\n\r\n`;
+    console.log(`[WebSocket] Sending upgrade response:`, response.replace(/\r\n/g, '\\r\\n'));
     socket.write(response);
-    // Handle any remaining data in head buffer
-    if (head.length > 0) {
-        socket.unshift(head);
-    }
     const clientId = (0, uuid_1.v4)();
     handler.registerWebSocketClient(clientId, socket);
     console.log(`[${new Date().toISOString()}] WebSocket client connected: ${clientId}`);
     let buffer = Buffer.alloc(0);
-    socket.on('data', async (data) => {
-        buffer = Buffer.concat([buffer, data]);
-        // Simple WebSocket frame parsing (for text frames)
+    socket.on('data', async (chunk) => {
+        buffer = Buffer.concat([buffer, chunk]);
         while (buffer.length >= 2) {
-            const firstByte = buffer[0];
-            const secondByte = buffer[1];
-            if ((firstByte & 0x80) === 0) {
-                // Fragmented frame, not handling for now
-                buffer = buffer.slice(1);
-                continue;
+            // Read first byte
+            const byte1 = buffer[0];
+            const byte2 = buffer[1];
+            // Extract fields from first byte
+            const fin = (byte1 & 0x80) >> 7;
+            const rsv = (byte1 & 0x70) >> 4;
+            const opcode = byte1 & 0x0f;
+            // Extract mask and payload length from second byte
+            const masked = (byte2 & 0x80) >> 7;
+            let payloadLen = byte2 & 0x7f;
+            // Validate frame
+            if (!fin || rsv !== 0) {
+                console.error(`Invalid frame header from ${clientId}: FIN=${fin}, RSV=${rsv}`);
+                socket.end();
+                break;
             }
-            const opcode = firstByte & 0x0F;
-            const masked = (secondByte & 0x80) !== 0;
-            let payloadLength = secondByte & 0x7F;
-            let headerLength = 2;
-            if (payloadLength === 126) {
+            if (!masked) {
+                console.error(`Unmasked frame from client ${clientId}`);
+                socket.end();
+                break;
+            }
+            // Determine header length and payload length
+            let headerLen = 2;
+            if (payloadLen === 126) {
                 if (buffer.length < 4)
                     break;
-                payloadLength = buffer.readUInt16BE(2);
-                headerLength = 4;
+                payloadLen = buffer.readUInt16BE(2);
+                headerLen = 4;
             }
-            else if (payloadLength === 127) {
+            else if (payloadLen === 127) {
                 if (buffer.length < 10)
                     break;
-                payloadLength = buffer.readUInt32BE(6);
-                headerLength = 10;
+                // Read 64-bit big-endian length
+                payloadLen = Number(buffer.readBigUInt64BE(2));
+                headerLen = 10;
             }
-            const maskStart = headerLength;
-            const maskLength = masked ? 4 : 0;
-            const payloadStart = maskStart + maskLength;
-            const frameLength = payloadStart + payloadLength;
-            if (buffer.length < frameLength)
+            // Calculate frame size
+            const maskingKeyStart = headerLen;
+            const maskingKeyEnd = maskingKeyStart + 4;
+            const payloadStart = maskingKeyEnd;
+            const frameEnd = payloadStart + payloadLen;
+            // Check if we have the complete frame
+            if (buffer.length < frameEnd)
                 break;
-            let payload = buffer.slice(payloadStart, frameLength);
-            // Unmask if necessary
-            if (masked && maskLength === 4) {
-                const mask = buffer.slice(maskStart, maskStart + 4);
-                for (let i = 0; i < payload.length; i++) {
-                    payload[i] ^= mask[i % 4];
-                }
+            // Extract masking key and payload
+            const maskingKey = buffer.slice(maskingKeyStart, maskingKeyEnd);
+            const payload = Buffer.alloc(payloadLen);
+            buffer.copy(payload, 0, payloadStart, frameEnd);
+            // Unmask payload
+            for (let i = 0; i < payloadLen; i++) {
+                payload[i] ^= maskingKey[i % 4];
             }
-            // Handle different opcodes
-            if (opcode === 0x1) { // Text frame
+            // Process frame based on opcode
+            if (opcode === 0x1) {
+                // Text frame
                 try {
-                    const message = JSON.parse(payload.toString());
+                    const message = JSON.parse(payload.toString('utf-8'));
                     await handler.handleMessage(clientId, message);
                 }
-                catch (error) {
-                    console.error(`Error processing WebSocket message from ${clientId}:`, error);
-                    sendWebSocketMessage(socket, { type: 'error', message: 'Invalid JSON format' });
+                catch (err) {
+                    console.error(`Error parsing message from ${clientId}:`, err);
+                    sendWebSocketMessage(socket, { type: 'error', message: 'Invalid JSON' });
                 }
             }
-            else if (opcode === 0x8) { // Close frame
+            else if (opcode === 0x8) {
+                // Close frame
                 handler.unregisterClient(clientId);
                 socket.end();
                 break;
             }
-            else if (opcode === 0x9) { // Ping frame
-                // Send pong
+            else if (opcode === 0x9) {
+                // Ping frame - respond with pong
                 const pongFrame = Buffer.alloc(2);
-                pongFrame[0] = 0x8A; // Pong
-                pongFrame[1] = 0;
+                pongFrame[0] = 0x8a; // FIN + Pong opcode
+                pongFrame[1] = 0x00; // No payload
                 socket.write(pongFrame);
             }
-            buffer = buffer.slice(frameLength);
+            else if (opcode === 0xa) {
+                // Pong frame - ignore
+            }
+            // Remove processed frame from buffer
+            buffer = buffer.slice(frameEnd);
         }
     });
     socket.on('end', () => {
         handler.unregisterClient(clientId);
         console.log(`[${new Date().toISOString()}] WebSocket client disconnected: ${clientId}`);
     });
-    socket.on('error', (error) => {
-        console.error(`WebSocket error for ${clientId}:`, error);
+    socket.on('error', (err) => {
+        console.error(`WebSocket error for ${clientId}:`, err);
         handler.unregisterClient(clientId);
     });
 }
-function sendWebSocketMessage(socket, message) {
-    const payload = JSON.stringify(message);
-    const payloadBuffer = Buffer.from(payload);
-    const frame = Buffer.alloc(2 + payloadBuffer.length);
-    frame[0] = 0x81; // FIN + Text frame
-    frame[1] = payloadBuffer.length; // Payload length (assuming < 126)
-    payloadBuffer.copy(frame, 2);
-    socket.write(frame);
-}
-function handleAPIRequest(req, res, parsedUrl) {
-    // Simple REST API for web clients
-    const pathname = parsedUrl.pathname || '';
-    const method = req.method || 'GET';
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    if (method === 'OPTIONS') {
-        res.writeHead(200);
-        res.end();
-        return;
+function sendWebSocketMessage(socket, data) {
+    const payload = Buffer.from(JSON.stringify(data), 'utf8');
+    const payloadLen = payload.length;
+    let header;
+    if (payloadLen < 126) {
+        header = Buffer.alloc(2);
+        header[0] = 0x81; // FIN + text opcode
+        header[1] = payloadLen;
     }
-    if (pathname === '/api/status') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: 'ok', server: 'running' }));
-    }
-    else if (pathname === '/api/login' && method === 'POST') {
-        handleLogin(req, res);
-    }
-    else if (pathname === '/api/register' && method === 'POST') {
-        handleRegister(req, res);
-    }
-    else if (pathname === '/api/chats' && method === 'GET') {
-        handleGetChats(req, res, parsedUrl);
-    }
-    else if (pathname === '/api/messages' && method === 'GET') {
-        handleGetMessages(req, res, parsedUrl);
-    }
-    else if (pathname === '/api/messages' && method === 'POST') {
-        handleSendMessage(req, res);
+    else if (payloadLen < 65536) {
+        header = Buffer.alloc(4);
+        header[0] = 0x81;
+        header[1] = 126;
+        header.writeUInt16BE(payloadLen, 2);
     }
     else {
-        res.writeHead(404);
-        res.end(JSON.stringify({ error: 'API endpoint not found' }));
+        header = Buffer.alloc(10);
+        header[0] = 0x81;
+        header[1] = 127;
+        header.writeBigUInt64BE(BigInt(payloadLen), 2);
     }
+    socket.write(Buffer.concat([header, payload]));
 }
-httpServer.listen(HTTP_PORT, () => {
-    console.log(`Web server listening on port ${HTTP_PORT}`);
-    console.log(`Open http://localhost:${HTTP_PORT} in your browser`);
-});
-// HTTP API Handlers
-async function handleLogin(req, res) {
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', async () => {
-        try {
-            const { username, password } = JSON.parse(body);
-            const user = await userService.getUserByUsername(username);
-            if (!user) {
-                res.writeHead(401, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: false, error: 'User not found' }));
-                return;
-            }
-            const isValidPassword = await userService.verifyPassword(password, user.password);
-            if (!isValidPassword) {
-                res.writeHead(401, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: false, error: 'Invalid password' }));
-                return;
-            }
-            const session = await userService.createSession(user.id, user.username);
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true, user, session }));
-        }
-        catch (error) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: 'Invalid request' }));
-        }
-    });
-}
-async function handleRegister(req, res) {
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', async () => {
-        try {
-            const { username, password } = JSON.parse(body);
-            const existingUser = await userService.getUserByUsername(username);
-            if (existingUser) {
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: false, error: 'Username already exists' }));
-                return;
-            }
-            const user = await userService.createUser(username, password);
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true, user }));
-        }
-        catch (error) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: 'Invalid request' }));
-        }
-    });
-}
-async function handleGetChats(req, res, parsedUrl) {
-    try {
-        // Extract session token from Authorization header
-        const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            res.writeHead(401, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: 'Authentication required' }));
-            return;
-        }
-        const sessionToken = authHeader.substring(7); // Remove 'Bearer ' prefix
-        const user = await userService.verifySession(sessionToken);
-        if (!user) {
-            res.writeHead(401, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: 'Invalid session' }));
-            return;
-        }
-        const chats = await chatService.getUserChats(user.id);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, chats }));
-    }
-    catch (error) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: false, error: 'Failed to get chats' }));
-    }
-}
-async function handleGetMessages(req, res, parsedUrl) {
-    try {
-        // Extract session token from Authorization header
-        const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            res.writeHead(401, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: 'Authentication required' }));
-            return;
-        }
-        const sessionToken = authHeader.substring(7); // Remove 'Bearer ' prefix
-        const user = await userService.verifySession(sessionToken);
-        if (!user) {
-            res.writeHead(401, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: 'Invalid session' }));
-            return;
-        }
-        const chatId = parsedUrl.query.chatId;
-        if (!chatId) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: 'chatId required' }));
-            return;
-        }
-        const messages = await messageService.getMessages(chatId);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, messages }));
-    }
-    catch (error) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: false, error: 'Failed to get messages' }));
-    }
-}
-async function handleSendMessage(req, res) {
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', async () => {
-        try {
-            const { chatId, content, senderId } = JSON.parse(body);
-            const result = await messageService.sendMessage(chatId, senderId, content);
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true, message: result }));
-        }
-        catch (error) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: 'Invalid request' }));
-        }
-    });
-}
+// Register the send function with the handler
+handler.setSendWebSocketMessage(sendWebSocketMessage);
 // Graceful shutdown
 process.on('SIGTERM', () => {
     console.log('SIGTERM received, shutting down gracefully');

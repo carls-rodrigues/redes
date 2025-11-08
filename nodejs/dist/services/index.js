@@ -62,12 +62,19 @@ class ChatService {
       SELECT cs.id, cs.type, cs.group_id, cs.created_at,
         (SELECT content FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_message_content,
         (SELECT timestamp FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_message_timestamp,
-        (SELECT sender_id FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_sender_id
+        (SELECT sender_id FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_sender_id,
+        g.name as group_name,
+        g.creator_id as group_creator_id,
+        COALESCE(
+          (SELECT timestamp FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1),
+          cs.created_at
+        ) as last_activity_time
       FROM chat_sessions cs
+      LEFT JOIN groups g ON cs.group_id = g.id
       WHERE cs.id IN (
         SELECT chat_session_id FROM chat_participants WHERE user_id = ?
       )
-      ORDER BY last_message_timestamp DESC NULLS LAST
+      ORDER BY last_activity_time DESC NULLS LAST
     `;
         const stmt = Database_1.default.prepare(query);
         const rows = stmt.all(userId);
@@ -77,6 +84,8 @@ class ChatService {
                 id: chat.id,
                 type: chat.type,
                 group_id: chat.group_id,
+                group_name: chat.group_name,
+                group_creator_id: chat.group_creator_id,
                 created_at: chat.created_at,
                 participants,
                 last_message: chat.last_message_content || 'Nenhuma mensagem ainda',
@@ -182,6 +191,10 @@ class ChatService {
             throw new Error('Group not found');
         const stmt = Database_1.default.prepare('DELETE FROM chat_participants WHERE chat_session_id = ? AND user_id = ?');
         stmt.run(chatSession.id, userId);
+    }
+    async updateGroupName(groupId, newName) {
+        const stmt = Database_1.default.prepare('UPDATE groups SET name = ? WHERE id = ?');
+        stmt.run(newName, groupId);
     }
     async listGroups() {
         const stmt = Database_1.default.prepare(`

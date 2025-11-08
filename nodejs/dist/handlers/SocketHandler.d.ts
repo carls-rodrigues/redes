@@ -3,7 +3,9 @@ import { SocketMessage } from '../types';
 export declare class SocketHandler {
     private clients;
     private userSessions;
+    private sendWebSocketMessage?;
     constructor();
+    setSendWebSocketMessage(fn: (socket: Socket, data: any) => void): void;
     registerClient(clientId: string, socket: Socket): void;
     registerWebSocketClient(clientId: string, socket: Socket): void;
     unregisterClient(clientId: string): void;
@@ -21,8 +23,10 @@ export declare class SocketHandler {
     private handleListGroups;
     private handleAddGroupMember;
     private handleRemoveGroupMember;
+    private handleUpdateGroupName;
     private sendMessage;
     private sendError;
+    private handleDeleteGroup;
     getConnectedUsers(): Set<string>;
     isUserOnline(userId: string): boolean;
 }

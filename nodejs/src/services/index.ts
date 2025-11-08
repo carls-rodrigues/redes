@@ -77,6 +77,7 @@ export class ChatService {
         (SELECT timestamp FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_message_timestamp,
         (SELECT sender_id FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1) as last_sender_id,
         g.name as group_name,
+        g.creator_id as group_creator_id,
         COALESCE(
           (SELECT timestamp FROM messages WHERE chat_session_id = cs.id ORDER BY timestamp DESC LIMIT 1),
           cs.created_at
@@ -100,6 +101,7 @@ export class ChatService {
         type: chat.type,
         group_id: chat.group_id,
         group_name: chat.group_name,
+        group_creator_id: chat.group_creator_id,
         created_at: chat.created_at,
         participants,
         last_message: chat.last_message_content || 'Nenhuma mensagem ainda',
@@ -240,6 +242,11 @@ export class ChatService {
       'DELETE FROM chat_participants WHERE chat_session_id = ? AND user_id = ?'
     );
     stmt.run(chatSession.id, userId);
+  }
+
+  async updateGroupName(groupId: string, newName: string): Promise<void> {
+    const stmt = db.prepare('UPDATE groups SET name = ? WHERE id = ?');
+    stmt.run(newName, groupId);
   }
 
   async listGroups(): Promise<any[]> {

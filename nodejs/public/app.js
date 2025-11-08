@@ -88,6 +88,10 @@ class ChatApp {
       this.handleGroupMemberAdded(message.payload);
     } else if (message.type === 'group:member_removed') {
       this.handleGroupMemberRemoved(message.payload);
+    } else if (message.type === 'group:name_updated') {
+      this.handleGroupNameUpdated(message.payload);
+    } else if (message.type === 'group:deleted') {
+      this.handleGroupDeleted(message.payload);
     }
   }
 
@@ -120,11 +124,35 @@ class ChatApp {
         // Message sent successfully
         break;
       case 'search_users':
+        this.allUsers = response.users;  // Store all users for group settings
         this.populateMembersList(response.users);
+        // If group settings modal is open, also load available members
+        if (!document.getElementById('group-settings-modal').classList.contains('hidden')) {
+          const isOwner = this.currentChat && this.currentChat.group_creator_id === this.currentUser.id;
+          this.loadAvailableMembers(isOwner);
+        }
         break;
       case 'create_group':
         this.loadChats();
         alert('Group created successfully!');
+        break;
+      case 'update_group_name':
+        alert('Group name updated successfully!');
+        this.loadChats();  // Refresh chat list
+        break;
+      case 'add_group_member':
+        alert('Member added successfully!');
+        this.loadChats();  // Refresh to see updated members
+        break;
+      case 'remove_group_member':
+        alert('Member removed successfully!');
+        this.loadChats();  // Refresh to see updated members
+        break;
+      case 'delete_group':
+        alert('Group deleted successfully!');
+        this.closeGroupSettings();
+        this.currentChat = null;
+        this.loadChats();  // Refresh chat list
         break;
     }
   }
@@ -161,6 +189,29 @@ class ChatApp {
 
   handleGroupMemberRemoved(data) {
     // Handle group member removed event
+    this.loadChats();  // Refresh chats to show member removal
+  }
+
+  handleGroupNameUpdated(data) {
+    // Handle group name updated event
+    if (this.currentChat && this.currentChat.group_id === data.group_id) {
+      this.currentChat.group_name = data.new_name;
+      document.getElementById('chat-title').textContent = data.new_name;
+    }
+    this.loadChats();  // Refresh chats to show name change
+  }
+
+  handleGroupDeleted(data) {
+    // Handle group deleted event
+    alert('This group has been deleted by the owner.');
+    if (this.currentChat && this.currentChat.group_id === data.group_id) {
+      this.currentChat = null;
+      this.closeGroupSettings();
+      document.getElementById('messages').innerHTML = '';
+      document.getElementById('chat-area').classList.add('hidden');
+      document.getElementById('welcome-screen').classList.remove('hidden');
+    }
+    this.loadChats();  // Refresh chats to remove deleted group
   }
 
   addMessageToUI(message) {
@@ -209,6 +260,13 @@ class ChatApp {
     // Group modal
     document.getElementById('cancel-group-btn').addEventListener('click', () => this.closeGroupModal());
     document.getElementById('create-group-btn').addEventListener('click', () => this.submitCreateGroup());
+
+    // Group settings
+    document.getElementById('group-settings-btn').addEventListener('click', () => this.openGroupSettings());
+    document.getElementById('close-group-settings-btn').addEventListener('click', () => this.closeGroupSettings());
+    document.getElementById('update-group-name-btn').addEventListener('click', () => this.updateGroupName());
+    document.getElementById('add-members-btn').addEventListener('click', () => this.addMembersToGroup());
+    document.getElementById('delete-group-btn').addEventListener('click', () => this.deleteGroup());
 
     // Enter key in message input
     document.getElementById('message-text').addEventListener('keypress', (e) => {
@@ -358,6 +416,14 @@ class ChatApp {
     }
 
     document.getElementById('chat-title').textContent = displayName;
+
+    // Show/hide group settings button based on chat type
+    const settingsBtn = document.getElementById('group-settings-btn');
+    if (chat.type === 'group') {
+      settingsBtn.classList.remove('hidden');
+    } else {
+      settingsBtn.classList.add('hidden');
+    }
 
     // Update UI - hide welcome, show messages and input
     document.getElementById('welcome-screen').classList.add('hidden');
@@ -553,6 +619,173 @@ class ChatApp {
 
   clearErrors() {
     document.querySelectorAll('.error-message').forEach(el => el.classList.add('hidden'));
+  }
+
+  // Group Settings Methods
+  openGroupSettings() {
+    if (!this.currentChat || this.currentChat.type !== 'group') return;
+
+    const modal = document.getElementById('group-settings-modal');
+    modal.classList.remove('hidden');
+
+    // Check if current user is group owner
+    const isOwner = this.currentChat.group_creator_id === this.currentUser.id;
+
+    // Load current group name
+    document.getElementById('edit-group-name-input').value = this.currentChat.group_name || '';
+
+    // Conditionally show/hide edit controls for non-owners
+    const editGroupNameInput = document.getElementById('edit-group-name-input');
+    const updateGroupNameBtn = document.getElementById('update-group-name-btn');
+    editGroupNameInput.disabled = !isOwner;
+    updateGroupNameBtn.disabled = !isOwner;
+    updateGroupNameBtn.style.opacity = isOwner ? '1' : '0.5';
+    updateGroupNameBtn.style.cursor = isOwner ? 'pointer' : 'not-allowed';
+
+    // Disable delete button for non-owners
+    const deleteGroupBtn = document.getElementById('delete-group-btn');
+    deleteGroupBtn.disabled = !isOwner;
+    deleteGroupBtn.style.opacity = isOwner ? '1' : '0.5';
+    deleteGroupBtn.style.cursor = isOwner ? 'pointer' : 'not-allowed';
+
+    // Load current members with ownership check
+    this.loadGroupMembers(isOwner);
+
+    // Load all users if not already loaded
+    if (!this.allUsers) {
+      this.sendWebSocketMessage({
+        type: 'search_users',
+        query: ''  // Empty query to get all users
+      });
+    } else {
+      // If already loaded, just display available members
+      this.loadAvailableMembers(isOwner);
+    }
+  }
+
+  closeGroupSettings() {
+    document.getElementById('group-settings-modal').classList.add('hidden');
+  }
+
+  loadGroupMembers(isOwner = false) {
+    const membersList = document.getElementById('group-members-list');
+    membersList.innerHTML = '';
+
+    if (!this.currentChat || !this.currentChat.participants) return;
+
+    this.currentChat.participants.forEach(member => {
+      const memberElement = document.createElement('div');
+      memberElement.className = 'flex items-center justify-between p-2 bg-muted/30 rounded border border-border';
+
+      // Add owner indicator
+      const isCreator = member.id === this.currentChat.group_creator_id;
+      const creatorBadge = isCreator ? '<span class="text-xs bg-primary text-primary-foreground px-2 py-1 rounded ml-2">(Owner)</span>' : '';
+
+      memberElement.innerHTML = `
+        <span>${member.username}${creatorBadge}</span>
+        <button class="px-2 py-1 text-sm bg-destructive text-destructive-foreground rounded hover:bg-destructive/90 transition-colors remove-member-btn" data-user-id="${member.id}" ${!isOwner || isCreator ? 'disabled' : ''} style="opacity: ${(!isOwner || isCreator) ? '0.5' : '1'}; cursor: ${(!isOwner || isCreator) ? 'not-allowed' : 'pointer'};">
+          Remove
+        </button>
+      `;
+
+      // Add remove member event listener (only if enabled)
+      const removeBtn = memberElement.querySelector('.remove-member-btn');
+      if (!removeBtn.disabled) {
+        removeBtn.addEventListener('click', (e) => {
+          this.removeMemberFromGroup(member.id);
+        });
+      }
+
+      membersList.appendChild(memberElement);
+    });
+  }
+
+  loadAvailableMembers(isOwner = false) {
+    const addMembersList = document.getElementById('add-members-list');
+    addMembersList.innerHTML = '';
+
+    if (!this.currentChat || !this.allUsers) return;
+
+    // Only show add members section if user is owner
+    if (!isOwner) {
+      addMembersList.innerHTML = '<p class="text-sm text-muted-foreground p-2">Only the group owner can add members</p>';
+      return;
+    }
+
+    // Get current member IDs
+    const currentMemberIds = new Set(this.currentChat.participants.map(p => p.id));
+
+    // Filter out current members
+    const availableUsers = this.allUsers.filter(user => !currentMemberIds.has(user.id));
+
+    if (availableUsers.length === 0) {
+      addMembersList.innerHTML = '<p class="text-sm text-muted-foreground p-2">No users available to add</p>';
+      return;
+    }
+
+    availableUsers.forEach(user => {
+      const checkboxDiv = document.createElement('div');
+      checkboxDiv.className = 'flex items-center p-2';
+      checkboxDiv.innerHTML = `
+        <input type="checkbox" id="add-member-${user.id}" value="${user.id}" class="mr-3 add-member-checkbox">
+        <label for="add-member-${user.id}" class="cursor-pointer flex-1">${user.username}</label>
+      `;
+      addMembersList.appendChild(checkboxDiv);
+    });
+  }
+
+  async updateGroupName() {
+    if (!this.currentChat || this.currentChat.type !== 'group') return;
+
+    const newName = document.getElementById('edit-group-name-input').value.trim();
+    if (!newName) {
+      alert('Please enter a group name');
+      return;
+    }
+
+    this.sendWebSocketMessage({
+      type: 'update_group_name',
+      group_id: this.currentChat.group_id,
+      new_name: newName
+    });
+  }
+
+  async addMembersToGroup() {
+    const checkboxes = document.querySelectorAll('#add-members-list input[type="checkbox"]:checked');
+    const newMemberIds = Array.from(checkboxes).map(cb => cb.value);
+
+    if (newMemberIds.length === 0) {
+      alert('Please select at least one member to add');
+      return;
+    }
+
+    // Add each member
+    for (const userId of newMemberIds) {
+      this.sendWebSocketMessage({
+        type: 'add_group_member',
+        group_id: this.currentChat.group_id,
+        user_id: userId
+      });
+    }
+  }
+
+  async removeMemberFromGroup(userId) {
+    if (!confirm('Remove this member from the group?')) return;
+
+    this.sendWebSocketMessage({
+      type: 'remove_group_member',
+      group_id: this.currentChat.group_id,
+      user_id: userId
+    });
+  }
+
+  async deleteGroup() {
+    if (!confirm('Are you sure you want to delete this group? This action cannot be undone.')) return;
+
+    this.sendWebSocketMessage({
+      type: 'delete_group',
+      group_id: this.currentChat.group_id
+    });
   }
 }
 

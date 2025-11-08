@@ -204,11 +204,16 @@
             <!-- Chat Area -->
             <div class="flex-1 flex flex-col">
                 <!-- Chat Header -->
-                <div id="chat-header" class="p-4 border-b bg-card flex items-center gap-3">
-                    <div class="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
-                        💬
+                <div id="chat-header" class="p-4 border-b bg-card flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+                            💬
+                        </div>
+                        <h3 id="chat-title" class="font-semibold">Select a conversation</h3>
                     </div>
-                    <h3 id="chat-title" class="font-semibold">Select a conversation</h3>
+                    <button id="group-settings-btn" class="px-3 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors hidden">
+                        ⚙️ Settings
+                    </button>
                 </div>
 
                 <!-- Welcome Screen (when no chat selected) -->
@@ -263,6 +268,55 @@
                 </button>
                 <button id="create-group-btn" class="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors">
                     Create
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Group Settings Modal -->
+    <div id="group-settings-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-card rounded-lg shadow-lg max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b sticky top-0 bg-card">
+                <h2 class="text-xl font-bold">Group Settings</h2>
+            </div>
+            <div class="p-6 space-y-6">
+                <!-- Edit Group Name -->
+                <div>
+                    <label class="block text-sm font-medium mb-2">Group Name</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="edit-group-name-input" placeholder="Enter new group name..."
+                               class="flex-1 px-4 py-2 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent">
+                        <button id="update-group-name-btn" class="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors">
+                            Update
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Group Members -->
+                <div>
+                    <h3 class="font-semibold mb-3">Members</h3>
+                    <div id="group-members-list" class="space-y-2 border border-input rounded-md bg-background p-3 max-h-40 overflow-y-auto">
+                        <!-- Group members will be listed here -->
+                    </div>
+                </div>
+
+                <!-- Add Members -->
+                <div>
+                    <label class="block text-sm font-medium mb-2">Add Members</label>
+                    <div id="add-members-list" class="border border-input rounded-md bg-background max-h-40 overflow-y-auto p-2">
+                        <!-- Available users will be listed here as checkboxes -->
+                    </div>
+                    <button id="add-members-btn" class="w-full mt-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors">
+                        Add Selected
+                    </button>
+                </div>
+            </div>
+            <div class="p-6 border-t flex gap-3 sticky bottom-0 bg-card">
+                <button id="close-group-settings-btn" class="flex-1 px-4 py-2 border border-input rounded-md hover:bg-muted transition-colors">
+                    Close
+                </button>
+                <button id="delete-group-btn" class="flex-1 px-4 py-2 bg-destructive text-destructive-foreground rounded-md hover:bg-destructive/90 transition-colors">
+                    Delete Group
                 </button>
             </div>
         </div>

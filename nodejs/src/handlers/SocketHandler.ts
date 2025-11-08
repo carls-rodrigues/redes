@@ -1,6 +1,7 @@
 import { Socket } from 'net';
 import { userService, chatService, messageService } from '../services';
 import { SocketMessage, Session } from '../types';
+import db from '../database/Database';
 
 interface ClientInfo {
   userId?: string;
@@ -87,6 +88,12 @@ export class SocketHandler {
           break;
         case 'remove_group_member':
           await this.handleRemoveGroupMember(clientId, message);
+          break;
+        case 'update_group_name':
+          await this.handleUpdateGroupName(clientId, message);
+          break;
+        case 'delete_group':
+          await this.handleDeleteGroup(clientId, message);
           break;
       }
     } catch (error) {
@@ -482,6 +489,18 @@ export class SocketHandler {
       return this.sendError(clientId, 'group_id and user_id required', message.request_id);
     }
 
+    // Check if user is the group creator
+    const getGroupStmt = db.prepare('SELECT creator_id FROM groups WHERE id = ?');
+    const group = getGroupStmt.get(group_id) as any;
+    
+    if (!group) {
+      return this.sendError(clientId, 'Group not found', message.request_id);
+    }
+
+    if (group.creator_id !== client.session.user_id) {
+      return this.sendError(clientId, 'Only group owner can remove members', message.request_id);
+    }
+
     await chatService.removeGroupMember(group_id, user_id);
     const response: any = {
       status: 'ok',
@@ -493,11 +512,65 @@ export class SocketHandler {
     this.sendMessage(clientId, response);
 
     // Notify the removed member
-    const memberClientId = this.userSessions.get(user_id);
-    if (memberClientId) {
-      this.sendMessage(memberClientId, {
-        type: 'group:member_removed',
-        payload: { group_id }
+    for (const [cId, c] of this.clients) {
+      if (c.session?.user_id === user_id) {
+        this.sendMessage(cId, {
+          type: 'group:member_removed',
+          payload: { group_id }
+        });
+        break;
+      }
+    }
+  }
+
+  private async handleUpdateGroupName(clientId: string, message: SocketMessage) {
+    const client = this.clients.get(clientId);
+    if (!client?.session) {
+      return this.sendError(clientId, 'Not authenticated', message.request_id);
+    }
+
+    const { group_id, new_name } = message;
+    if (!group_id || !new_name) {
+      return this.sendError(clientId, 'group_id and new_name required', message.request_id);
+    }
+
+    // Check if user is the group creator
+    const getGroupStmt = db.prepare('SELECT creator_id FROM groups WHERE id = ?');
+    const group = getGroupStmt.get(group_id) as any;
+    
+    if (!group) {
+      return this.sendError(clientId, 'Group not found', message.request_id);
+    }
+
+    if (group.creator_id !== client.session.user_id) {
+      return this.sendError(clientId, 'Only group owner can update group name', message.request_id);
+    }
+
+    await chatService.updateGroupName(group_id, new_name);
+    const response: any = {
+      status: 'ok',
+      message: 'Group name updated'
+    };
+    if (message.request_id) {
+      response.request_id = message.request_id;
+    }
+    this.sendMessage(clientId, response);
+
+    // Notify all group members about the name change
+    const getChatStmt = db.prepare('SELECT id FROM chat_sessions WHERE group_id = ?');
+    const chatSession = getChatStmt.get(group_id) as any;
+    if (chatSession) {
+      const getMembersStmt = db.prepare('SELECT DISTINCT user_id FROM chat_participants WHERE chat_session_id = ?');
+      const members = getMembersStmt.all(chatSession.id) as any[];
+      
+      members.forEach(member => {
+        const memberClientId = this.userSessions.get(member.user_id);
+        if (memberClientId) {
+          this.sendMessage(memberClientId, {
+            type: 'group:name_updated',
+            payload: { group_id, new_name }
+          });
+        }
       });
     }
   }
@@ -530,6 +603,94 @@ export class SocketHandler {
       response.request_id = requestId;
     }
     this.sendMessage(clientId, response);
+  }
+
+  private async handleDeleteGroup(clientId: string, message: SocketMessage) {
+    const client = this.clients.get(clientId);
+    if (!client?.session) {
+      return this.sendError(clientId, 'Not authenticated', message.request_id);
+    }
+
+    const { group_id } = message;
+
+    if (!group_id) {
+      return this.sendError(clientId, 'group_id required', message.request_id);
+    }
+
+    const getGroupStmt = db.prepare('SELECT creator_id FROM groups WHERE id = ?');
+    const group = getGroupStmt.get(group_id) as any;
+
+    if (!group) {
+      return this.sendError(clientId, 'Group not found', message.request_id);
+    }
+
+    // Only group owner can delete the group
+    if (group.creator_id !== client.session.user_id) {
+      return this.sendError(clientId, 'Only group owner can delete group', message.request_id);
+    }
+
+    try {
+      // Get participants BEFORE deleting
+      const getChatStmt = db.prepare('SELECT id FROM chat_sessions WHERE group_id = ?');
+      const chatSession = getChatStmt.get(group_id) as any;
+      let participants: any[] = [];
+      
+      if (chatSession) {
+        const getParticipantsStmt = db.prepare('SELECT user_id FROM chat_participants WHERE chat_session_id = ?');
+        participants = getParticipantsStmt.all(chatSession.id) as any[];
+      }
+
+      // Delete messages first (due to foreign key constraints)
+      if (chatSession) {
+        const deleteMessagesStmt = db.prepare('DELETE FROM messages WHERE chat_session_id = ?');
+        deleteMessagesStmt.run(chatSession.id);
+      }
+
+      // Delete chat participants
+      const deleteParticipantsStmt = db.prepare('DELETE FROM chat_participants WHERE chat_session_id = ?');
+      if (chatSession) {
+        deleteParticipantsStmt.run(chatSession.id);
+      }
+
+      // Delete chat session associated with this group
+      const deleteChatStmt = db.prepare('DELETE FROM chat_sessions WHERE group_id = ?');
+      deleteChatStmt.run(group_id);
+
+      // Delete group
+      const deleteGroupStmt = db.prepare('DELETE FROM groups WHERE id = ?');
+      deleteGroupStmt.run(group_id);
+
+      const response = {
+        status: 'ok',
+        type: 'delete_group',
+        request_id: message.request_id,
+        message: 'Group deleted successfully'
+      };
+
+      this.sendMessage(clientId, response);
+
+      // Notify all group members that group has been deleted
+      const notification = {
+        type: 'group:deleted',
+        payload: {
+          group_id,
+          message: 'Group has been deleted by the owner'
+        }
+      };
+
+      participants.forEach(p => {
+        // Find client for this user
+        for (const [cId, c] of this.clients) {
+          if (c.session?.user_id === p.user_id) {
+            this.sendMessage(cId, notification);
+            break;
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error deleting group:', error);
+      this.sendError(clientId, 'Failed to delete group', message.request_id);
+    }
   }
 
   getConnectedUsers(): Set<string> {

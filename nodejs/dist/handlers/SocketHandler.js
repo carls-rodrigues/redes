@@ -1,24 +1,27 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SocketHandler = void 0;
 const services_1 = require("../services");
+const Database_1 = __importDefault(require("../database/Database"));
 class SocketHandler {
     constructor() {
         this.clients = new Map();
         this.userSessions = new Map(); // userId -> clientId
+    }
+    setSendWebSocketMessage(fn) {
+        this.sendWebSocketMessage = fn;
     }
     registerClient(clientId, socket) {
         this.clients.set(clientId, { socket, isWebSocket: false });
     }
     registerWebSocketClient(clientId, socket) {
         const sendMessage = (message) => {
-            const payload = JSON.stringify(message);
-            const payloadBuffer = Buffer.from(payload);
-            const frame = Buffer.alloc(2 + payloadBuffer.length);
-            frame[0] = 0x81; // FIN + Text frame
-            frame[1] = payloadBuffer.length; // Payload length (assuming < 126)
-            payloadBuffer.copy(frame, 2);
-            socket.write(frame);
+            if (this.sendWebSocketMessage) {
+                this.sendWebSocketMessage(socket, message);
+            }
         };
         this.clients.set(clientId, { socket, isWebSocket: true, sendMessage });
     }
@@ -73,6 +76,12 @@ class SocketHandler {
                     break;
                 case 'remove_group_member':
                     await this.handleRemoveGroupMember(clientId, message);
+                    break;
+                case 'update_group_name':
+                    await this.handleUpdateGroupName(clientId, message);
+                    break;
+                case 'delete_group':
+                    await this.handleDeleteGroup(clientId, message);
                     break;
             }
         }
@@ -267,24 +276,22 @@ class SocketHandler {
             response.request_id = message.request_id;
         }
         this.sendMessage(clientId, response);
-        // Broadcast to other participants
+        // Broadcast message to ALL participants (including sender)
         const participants = await services_1.chatService.getChatParticipants(chat_id);
         for (const participant of participants) {
-            if (participant.id !== client.session.user_id) {
-                const receiverClientId = this.userSessions.get(participant.id);
-                if (receiverClientId) {
-                    this.sendMessage(receiverClientId, {
-                        type: 'message:new',
-                        payload: {
-                            id: msg.id,
-                            chat_session_id: chat_id,
-                            sender_id: msg.sender_id,
-                            sender_username: client.session.username,
-                            content: msg.content,
-                            timestamp: msg.timestamp
-                        }
-                    });
-                }
+            const receiverClientId = this.userSessions.get(participant.id);
+            if (receiverClientId) {
+                this.sendMessage(receiverClientId, {
+                    type: 'message:new',
+                    payload: {
+                        id: msg.id,
+                        chat_session_id: chat_id,
+                        sender_id: msg.sender_id,
+                        sender_username: client.session.username,
+                        content: msg.content,
+                        timestamp: msg.timestamp
+                    }
+                });
             }
         }
     }
@@ -294,8 +301,21 @@ class SocketHandler {
             return this.sendError(clientId, 'Not authenticated', message.request_id);
         }
         const { query } = message;
-        if (!query || typeof query !== 'string') {
-            return this.sendError(clientId, 'query required', message.request_id);
+        if (query === undefined || (typeof query === 'string' && query === '')) {
+            // Allow empty query to search all users
+            const users = await services_1.userService.searchUsers('%', client.session.user_id);
+            const response = {
+                status: 'ok',
+                users
+            };
+            if (message.request_id) {
+                response.request_id = message.request_id;
+            }
+            this.sendMessage(clientId, response);
+            return;
+        }
+        if (typeof query !== 'string') {
+            return this.sendError(clientId, 'query must be a string', message.request_id);
         }
         const users = await services_1.userService.searchUsers(query, client.session.user_id);
         const response = {
@@ -413,6 +433,15 @@ class SocketHandler {
         if (!group_id || !user_id) {
             return this.sendError(clientId, 'group_id and user_id required', message.request_id);
         }
+        // Check if user is the group creator
+        const getGroupStmt = Database_1.default.prepare('SELECT creator_id FROM groups WHERE id = ?');
+        const group = getGroupStmt.get(group_id);
+        if (!group) {
+            return this.sendError(clientId, 'Group not found', message.request_id);
+        }
+        if (group.creator_id !== client.session.user_id) {
+            return this.sendError(clientId, 'Only group owner can remove members', message.request_id);
+        }
         await services_1.chatService.removeGroupMember(group_id, user_id);
         const response = {
             status: 'ok',
@@ -423,11 +452,57 @@ class SocketHandler {
         }
         this.sendMessage(clientId, response);
         // Notify the removed member
-        const memberClientId = this.userSessions.get(user_id);
-        if (memberClientId) {
-            this.sendMessage(memberClientId, {
-                type: 'group:member_removed',
-                payload: { group_id }
+        for (const [cId, c] of this.clients) {
+            if (c.session?.user_id === user_id) {
+                this.sendMessage(cId, {
+                    type: 'group:member_removed',
+                    payload: { group_id }
+                });
+                break;
+            }
+        }
+    }
+    async handleUpdateGroupName(clientId, message) {
+        const client = this.clients.get(clientId);
+        if (!client?.session) {
+            return this.sendError(clientId, 'Not authenticated', message.request_id);
+        }
+        const { group_id, new_name } = message;
+        if (!group_id || !new_name) {
+            return this.sendError(clientId, 'group_id and new_name required', message.request_id);
+        }
+        // Check if user is the group creator
+        const getGroupStmt = Database_1.default.prepare('SELECT creator_id FROM groups WHERE id = ?');
+        const group = getGroupStmt.get(group_id);
+        if (!group) {
+            return this.sendError(clientId, 'Group not found', message.request_id);
+        }
+        if (group.creator_id !== client.session.user_id) {
+            return this.sendError(clientId, 'Only group owner can update group name', message.request_id);
+        }
+        await services_1.chatService.updateGroupName(group_id, new_name);
+        const response = {
+            status: 'ok',
+            message: 'Group name updated'
+        };
+        if (message.request_id) {
+            response.request_id = message.request_id;
+        }
+        this.sendMessage(clientId, response);
+        // Notify all group members about the name change
+        const getChatStmt = Database_1.default.prepare('SELECT id FROM chat_sessions WHERE group_id = ?');
+        const chatSession = getChatStmt.get(group_id);
+        if (chatSession) {
+            const getMembersStmt = Database_1.default.prepare('SELECT DISTINCT user_id FROM chat_participants WHERE chat_session_id = ?');
+            const members = getMembersStmt.all(chatSession.id);
+            members.forEach(member => {
+                const memberClientId = this.userSessions.get(member.user_id);
+                if (memberClientId) {
+                    this.sendMessage(memberClientId, {
+                        type: 'group:name_updated',
+                        payload: { group_id, new_name }
+                    });
+                }
             });
         }
     }
@@ -459,6 +534,79 @@ class SocketHandler {
             response.request_id = requestId;
         }
         this.sendMessage(clientId, response);
+    }
+    async handleDeleteGroup(clientId, message) {
+        const client = this.clients.get(clientId);
+        if (!client?.session) {
+            return this.sendError(clientId, 'Not authenticated', message.request_id);
+        }
+        const { group_id } = message;
+        if (!group_id) {
+            return this.sendError(clientId, 'group_id required', message.request_id);
+        }
+        const getGroupStmt = Database_1.default.prepare('SELECT creator_id FROM groups WHERE id = ?');
+        const group = getGroupStmt.get(group_id);
+        if (!group) {
+            return this.sendError(clientId, 'Group not found', message.request_id);
+        }
+        // Only group owner can delete the group
+        if (group.creator_id !== client.session.user_id) {
+            return this.sendError(clientId, 'Only group owner can delete group', message.request_id);
+        }
+        try {
+            // Get participants BEFORE deleting
+            const getChatStmt = Database_1.default.prepare('SELECT id FROM chat_sessions WHERE group_id = ?');
+            const chatSession = getChatStmt.get(group_id);
+            let participants = [];
+            if (chatSession) {
+                const getParticipantsStmt = Database_1.default.prepare('SELECT user_id FROM chat_participants WHERE chat_session_id = ?');
+                participants = getParticipantsStmt.all(chatSession.id);
+            }
+            // Delete messages first (due to foreign key constraints)
+            if (chatSession) {
+                const deleteMessagesStmt = Database_1.default.prepare('DELETE FROM messages WHERE chat_session_id = ?');
+                deleteMessagesStmt.run(chatSession.id);
+            }
+            // Delete chat participants
+            const deleteParticipantsStmt = Database_1.default.prepare('DELETE FROM chat_participants WHERE chat_session_id = ?');
+            if (chatSession) {
+                deleteParticipantsStmt.run(chatSession.id);
+            }
+            // Delete chat session associated with this group
+            const deleteChatStmt = Database_1.default.prepare('DELETE FROM chat_sessions WHERE group_id = ?');
+            deleteChatStmt.run(group_id);
+            // Delete group
+            const deleteGroupStmt = Database_1.default.prepare('DELETE FROM groups WHERE id = ?');
+            deleteGroupStmt.run(group_id);
+            const response = {
+                status: 'ok',
+                type: 'delete_group',
+                request_id: message.request_id,
+                message: 'Group deleted successfully'
+            };
+            this.sendMessage(clientId, response);
+            // Notify all group members that group has been deleted
+            const notification = {
+                type: 'group:deleted',
+                payload: {
+                    group_id,
+                    message: 'Group has been deleted by the owner'
+                }
+            };
+            participants.forEach(p => {
+                // Find client for this user
+                for (const [cId, c] of this.clients) {
+                    if (c.session?.user_id === p.user_id) {
+                        this.sendMessage(cId, notification);
+                        break;
+                    }
+                }
+            });
+        }
+        catch (error) {
+            console.error('Error deleting group:', error);
+            this.sendError(clientId, 'Failed to delete group', message.request_id);
+        }
     }
     getConnectedUsers() {
         return new Set(this.userSessions.keys());
