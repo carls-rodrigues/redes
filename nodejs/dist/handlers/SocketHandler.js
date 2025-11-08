@@ -83,6 +83,9 @@ class SocketHandler {
                 case 'delete_group':
                     await this.handleDeleteGroup(clientId, message);
                     break;
+                case 'logout':
+                    await this.handleLogout(clientId, message);
+                    break;
             }
         }
         catch (error) {
@@ -606,6 +609,38 @@ class SocketHandler {
         catch (error) {
             console.error('Error deleting group:', error);
             this.sendError(clientId, 'Failed to delete group', message.request_id);
+        }
+    }
+    async handleLogout(clientId, message) {
+        const client = this.clients.get(clientId);
+        if (!client?.session) {
+            return this.sendError(clientId, 'Not authenticated', message.request_id);
+        }
+        try {
+            // Delete the session from database
+            const deleted = await services_1.userService.deleteSession(client.session.session_id);
+            if (deleted) {
+                // Clear session from client
+                client.session = undefined;
+                // Remove from user sessions map
+                if (client.userId) {
+                    this.userSessions.delete(client.userId);
+                }
+                const response = {
+                    status: 'ok',
+                    type: 'logout',
+                    request_id: message.request_id,
+                    message: 'Logged out successfully'
+                };
+                this.sendMessage(clientId, response);
+            }
+            else {
+                return this.sendError(clientId, 'Session not found', message.request_id);
+            }
+        }
+        catch (error) {
+            console.error('Error during logout:', error);
+            this.sendError(clientId, 'Failed to logout', message.request_id);
         }
     }
     getConnectedUsers() {

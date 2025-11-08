@@ -30,6 +30,8 @@ class UserService {
     async createSession(userId, username) {
         const sessionId = (0, uuid_1.v4)();
         const createdAt = new Date().toISOString();
+        // Delete any existing sessions for this user
+        await this.deleteUserSessions(userId);
         const stmt = Database_1.default.prepare('INSERT INTO sessions (session_id, user_id, created_at) VALUES (?, ?, ?)');
         stmt.run(sessionId, userId, createdAt);
         return { session_id: sessionId, user_id: userId, username, created_at: createdAt };
@@ -42,6 +44,16 @@ class UserService {
       WHERE s.session_id = ?
     `);
         return stmt.get(sessionToken);
+    }
+    async deleteSession(sessionToken) {
+        const stmt = Database_1.default.prepare('DELETE FROM sessions WHERE session_id = ?');
+        const result = stmt.run(sessionToken);
+        return result.changes > 0;
+    }
+    async deleteUserSessions(userId) {
+        const stmt = Database_1.default.prepare('DELETE FROM sessions WHERE user_id = ?');
+        const result = stmt.run(userId);
+        return result.changes;
     }
     async searchUsers(query, excludeUserId) {
         let sql = 'SELECT id, username FROM users WHERE username LIKE ?';

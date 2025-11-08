@@ -35,6 +35,9 @@ export class UserService {
     const sessionId = uuidv4();
     const createdAt = new Date().toISOString();
 
+    // Delete any existing sessions for this user
+    await this.deleteUserSessions(userId);
+
     const stmt = db.prepare(
       'INSERT INTO sessions (session_id, user_id, created_at) VALUES (?, ?, ?)'
     );
@@ -51,6 +54,18 @@ export class UserService {
       WHERE s.session_id = ?
     `);
     return stmt.get(sessionToken) as User | null;
+  }
+
+  async deleteSession(sessionToken: string): Promise<boolean> {
+    const stmt = db.prepare('DELETE FROM sessions WHERE session_id = ?');
+    const result = stmt.run(sessionToken);
+    return result.changes > 0;
+  }
+
+  async deleteUserSessions(userId: string): Promise<number> {
+    const stmt = db.prepare('DELETE FROM sessions WHERE user_id = ?');
+    const result = stmt.run(userId);
+    return result.changes;
   }
 
   async searchUsers(query: string, excludeUserId?: string): Promise<User[]> {

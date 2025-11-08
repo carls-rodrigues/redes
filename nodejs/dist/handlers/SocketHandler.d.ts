@@ -27,6 +27,7 @@ export declare class SocketHandler {
     private sendMessage;
     private sendError;
     private handleDeleteGroup;
+    private handleLogout;
     getConnectedUsers(): Set<string>;
     isUserOnline(userId: string): boolean;
 }

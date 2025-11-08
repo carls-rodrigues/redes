@@ -1,7 +1,7 @@
 "use client"
 
 interface ConversationCardProps {
-  id: number
+  id: string | number
   title: string
   preview: string
   timestamp: string

@@ -6,6 +6,8 @@ export declare class UserService {
     verifyPassword(password: string, hash: string): Promise<boolean>;
     createSession(userId: string, username: string): Promise<Session>;
     verifySession(sessionToken: string): Promise<User | null>;
+    deleteSession(sessionToken: string): Promise<boolean>;
+    deleteUserSessions(userId: string): Promise<number>;
     searchUsers(query: string, excludeUserId?: string): Promise<User[]>;
 }
 export declare class ChatService {

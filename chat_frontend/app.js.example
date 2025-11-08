@@ -153,10 +153,6 @@ class ChatApp {
         this.currentChat = null;
         this.loadChats();  // Refresh chat list
         break;
-      case 'logout':
-        // Logout response received - session invalidated on server
-        console.log('Logged out successfully');
-        break;
     }
   }
 
@@ -519,18 +515,11 @@ class ChatApp {
   }
 
   logout() {
-    // Send logout message to server to invalidate session
-    this.sendWebSocketMessage({
-      type: 'logout'
-    });
-
-    // Clear local state immediately
     this.currentUser = null;
     this.currentChat = null;
     localStorage.removeItem('user');
     localStorage.removeItem('session');
     this.showAuth();
-
     // Close WebSocket connection
     if (this.ws) {
       this.ws.close();

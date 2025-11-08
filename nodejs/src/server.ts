@@ -1,251 +1,170 @@
 import * as net from 'net';
-import * as http from 'http';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as url from 'url';
 import * as crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { SocketHandler } from './handlers/SocketHandler';
 import { SocketMessage } from './types';
-import { UserService, ChatService, MessageService } from './services';
 
 const PORT = 5000;
-const HTTP_PORT = 8080;
 const handler = new SocketHandler();
-const userService = new UserService();
-const chatService = new ChatService();
-const messageService = new MessageService();
 
-// Will be set after defining sendWebSocketMessage function
-let sendWebSocketMessageFn: (socket: any, data: any) => void;
-
+// Create hybrid server that detects protocol
 const server = net.createServer((socket) => {
   const clientId = uuidv4();
-  handler.registerClient(clientId, socket);
-  
-  console.log(`[${new Date().toISOString()}] Client connected: ${clientId}`);
-  
-  let buffer = '';
+  let buffer = Buffer.alloc(0);
+  let protocolDetected = false;
 
-  socket.on('data', async (data) => {
-    buffer += data.toString();
+  const detectProtocol = (data: Buffer) => {
+    buffer = Buffer.concat([buffer, data]);
     
-    // Process complete lines (separated by \n)
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || ''; // Keep incomplete line in buffer
+    // Need at least 16 bytes to reliably detect HTTP
+    if (buffer.length < 16) return;
     
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      
-      try {
-        const message: SocketMessage = JSON.parse(line);
-        await handler.handleMessage(clientId, message);
-      } catch (error: any) {
-        if (error instanceof SyntaxError) {
-          socket.write(JSON.stringify({ 
-            status: 'error', 
-            message: 'Invalid JSON format' 
-          }) + '\n');
-        } else {
-          console.error(`Error processing message from ${clientId}:`, error);
-        }
-      }
+    protocolDetected = true;
+    socket.removeListener('data', detectProtocol);
+    
+    const dataStr = buffer.toString('utf8', 0, Math.min(buffer.length, 100));
+    
+    // Check if it's an HTTP request (WebSocket upgrade)
+    if (dataStr.startsWith('GET ')) {
+      console.log(`[${new Date().toISOString()}] HTTP WebSocket upgrade request detected`);
+      handleWebSocketUpgrade(socket, buffer, clientId);
+    } else {
+      // It's a raw TCP connection
+      console.log(`[${new Date().toISOString()}] Raw TCP client connected: ${clientId}`);
+      handleRawTcpConnection(socket, buffer, clientId);
     }
-  });
+  };
 
-  socket.on('end', () => {
-    handler.unregisterClient(clientId);
-    console.log(`[${new Date().toISOString()}] Client disconnected: ${clientId}`);
-  });
+  socket.on('data', detectProtocol);
 
   socket.on('error', (error: any) => {
-    // EPIPE is a normal error when client disconnects abruptly, don't log it
-    if (error.code !== 'EPIPE') {
+    if (error.code !== 'EPIPE' && error.code !== 'ECONNRESET') {
       console.error(`Socket error for ${clientId}:`, error);
     }
-    handler.unregisterClient(clientId);
+    if (!protocolDetected) {
+      socket.removeListener('data', detectProtocol);
+    }
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`Socket server listening on port ${PORT}`);
-});
-
-// HTTP Server for Static Files ONLY
-// NO REST API endpoints - all communication via WebSocket
-const httpServer = http.createServer((req, res) => {
-  const parsedUrl = url.parse(req.url || '', true);
-  let pathname = parsedUrl.pathname || '/';
-
-  // Default to index.html
-  if (pathname === '/') pathname = '/index.html';
-
-  const filePath = path.join(process.cwd(), 'public', pathname);
+function handleWebSocketUpgrade(socket: any, initialData: Buffer, clientId: string) {
+  // Parse HTTP headers
+  const dataStr = initialData.toString('utf8');
+  const headerEnd = dataStr.indexOf('\r\n\r\n');
   
-  // Prevent directory traversal attacks
-  if (!filePath.startsWith(path.join(process.cwd(), 'public'))) {
-    res.writeHead(403);
-    res.end('Forbidden');
+  if (headerEnd === -1) {
+    socket.destroy();
     return;
   }
-
-  fs.readFile(filePath, (err, data) => {
-    if (err) {
-      res.writeHead(404);
-      res.end('Not Found');
-      return;
-    }
-
-    const ext = path.extname(filePath).toLowerCase();
-    const mime: Record<string, string> = {
-      '.html': 'text/html',
-      '.css': 'text/css',
-      '.js': 'application/javascript',
-      '.json': 'application/json',
-      '.png': 'image/png',
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.svg': 'image/svg+xml',
-      '.ico': 'image/x-icon'
-    };
-
-    res.writeHead(200, {
-      'Content-Type': mime[ext] || 'application/octet-stream',
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
-    });
-    res.end(data);
-  });
-});
-
-
-// Handle WebSocket upgrades  
-httpServer.on('upgrade', (req, socket, head) => {
-  const pathname = url.parse(req.url || '').pathname || '/';
   
-  if (pathname === '/ws') {
-    handleWebSocketUpgrade(req, socket, head);
-  } else {
-    socket.destroy();
-  }
-});
-
-httpServer.listen(HTTP_PORT, () => {
-  console.log(`HTTP server (static files only) listening on port ${HTTP_PORT}`);
-  console.log(`Open http://localhost:${HTTP_PORT} in your browser`);
-});
-
-function serveFile(res: http.ServerResponse, filename: string, contentType: string) {
-  const filePath = path.join(__dirname, '../public', filename);
-  console.log(`Serving file: ${filePath}`);
-
-  fs.readFile(filePath, (err, data) => {
-    if (err) {
-      res.writeHead(404);
-      res.end('File not found');
-      return;
+  const headerLines = dataStr.substring(0, headerEnd).split('\r\n');
+  const headers: Record<string, string> = {};
+  
+  for (let i = 1; i < headerLines.length; i++) {
+    const line = headerLines[i];
+    const colonIndex = line.indexOf(': ');
+    if (colonIndex > 0) {
+      const key = line.substring(0, colonIndex).toLowerCase();
+      const value = line.substring(colonIndex + 2);
+      headers[key] = value;
     }
-    res.writeHead(200, {
-      'Content-Type': contentType,
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
-    });
-    res.end(data);
-  });
-}
-
-function handleWebSocketUpgrade(req: http.IncomingMessage, socket: any, head: Buffer) {
-  const key = req.headers['sec-websocket-key'] as string;
-
+  }
+  
+  // Verify WebSocket upgrade
+  if (headers['upgrade']?.toLowerCase() !== 'websocket') {
+    socket.destroy();
+    return;
+  }
+  
+  const key = headers['sec-websocket-key'];
   if (!key) {
-    console.error('No WebSocket key provided');
     socket.destroy();
     return;
   }
-
+  
   // Generate accept token according to RFC 6455
   const acceptToken = crypto
     .createHash('sha1')
     .update(key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')
     .digest('base64');
-
-  // Build HTTP upgrade response with proper CRLF line endings
-  const response = `HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${acceptToken}\r\n\r\n`;
   
-  console.log(`[WebSocket] Sending upgrade response:`, response.replace(/\r\n/g, '\\r\\n'));
+  // Send upgrade response
+  const response = [
+    'HTTP/1.1 101 Switching Protocols',
+    'Upgrade: websocket',
+    'Connection: Upgrade',
+    `Sec-WebSocket-Accept: ${acceptToken}`,
+    '',
+    ''
+  ].join('\r\n');
+  
+  console.log(`[WebSocket] Sending upgrade response to ${clientId}`);
+  
+  if (!socket.writable || socket.destroyed) {
+    console.error('Socket not writable, cannot send upgrade response');
+    return;
+  }
+  
   socket.write(response);
-
-  const clientId = uuidv4();
+  
+  // Register as WebSocket client
   handler.registerWebSocketClient(clientId, socket);
-
   console.log(`[${new Date().toISOString()}] WebSocket client connected: ${clientId}`);
-
-  let buffer = Buffer.alloc(0);
-
+  
+  // Handle WebSocket frames
+  let frameBuffer = Buffer.alloc(0);
+  
   socket.on('data', async (chunk: Buffer) => {
-    buffer = Buffer.concat([buffer, chunk]);
-
-    while (buffer.length >= 2) {
-      // Read first byte
-      const byte1 = buffer[0];
-      const byte2 = buffer[1];
-
-      // Extract fields from first byte
+    frameBuffer = Buffer.concat([frameBuffer, chunk]);
+    
+    while (frameBuffer.length >= 2) {
+      const byte1 = frameBuffer[0];
+      const byte2 = frameBuffer[1];
+      
       const fin = (byte1 & 0x80) >> 7;
       const rsv = (byte1 & 0x70) >> 4;
       const opcode = byte1 & 0x0f;
-
-      // Extract mask and payload length from second byte
       const masked = (byte2 & 0x80) >> 7;
       let payloadLen = byte2 & 0x7f;
-
+      
       // Validate frame
       if (!fin || rsv !== 0) {
-        console.error(`Invalid frame header from ${clientId}: FIN=${fin}, RSV=${rsv}`);
+        console.error(`Invalid frame header from ${clientId}`);
         socket.end();
         break;
       }
-
+      
       if (!masked) {
         console.error(`Unmasked frame from client ${clientId}`);
         socket.end();
         break;
       }
-
-      // Determine header length and payload length
+      
+      // Determine payload length
       let headerLen = 2;
       if (payloadLen === 126) {
-        if (buffer.length < 4) break;
-        payloadLen = buffer.readUInt16BE(2);
+        if (frameBuffer.length < 4) break;
+        payloadLen = frameBuffer.readUInt16BE(2);
         headerLen = 4;
       } else if (payloadLen === 127) {
-        if (buffer.length < 10) break;
-        // Read 64-bit big-endian length
-        payloadLen = Number(buffer.readBigUInt64BE(2));
+        if (frameBuffer.length < 10) break;
+        payloadLen = Number(frameBuffer.readBigUInt64BE(2));
         headerLen = 10;
       }
-
-      // Calculate frame size
-      const maskingKeyStart = headerLen;
-      const maskingKeyEnd = maskingKeyStart + 4;
-      const payloadStart = maskingKeyEnd;
-      const frameEnd = payloadStart + payloadLen;
-
-      // Check if we have the complete frame
-      if (buffer.length < frameEnd) break;
-
+      
+      const frameEnd = headerLen + 4 + payloadLen;
+      if (frameBuffer.length < frameEnd) break;
+      
       // Extract masking key and payload
-      const maskingKey = buffer.slice(maskingKeyStart, maskingKeyEnd);
+      const maskingKey = frameBuffer.slice(headerLen, headerLen + 4);
       const payload = Buffer.alloc(payloadLen);
-      buffer.copy(payload, 0, payloadStart, frameEnd);
-
+      frameBuffer.copy(payload, 0, headerLen + 4, frameEnd);
+      
       // Unmask payload
       for (let i = 0; i < payloadLen; i++) {
         payload[i] ^= maskingKey[i % 4];
       }
-
+      
       // Process frame based on opcode
       if (opcode === 0x1) {
         // Text frame
@@ -263,31 +182,94 @@ function handleWebSocketUpgrade(req: http.IncomingMessage, socket: any, head: Bu
         break;
       } else if (opcode === 0x9) {
         // Ping frame - respond with pong
-        const pongFrame = Buffer.alloc(2);
-        pongFrame[0] = 0x8a; // FIN + Pong opcode
-        pongFrame[1] = 0x00; // No payload
-        socket.write(pongFrame);
+        const pongFrame = Buffer.from([0x8a, 0x00]);
+        if (socket.writable && !socket.destroyed) {
+          socket.write(pongFrame);
+        }
       } else if (opcode === 0xa) {
         // Pong frame - ignore
       }
-
-      // Remove processed frame from buffer
-      buffer = buffer.slice(frameEnd);
+      
+      frameBuffer = frameBuffer.slice(frameEnd);
     }
   });
-
+  
   socket.on('end', () => {
     handler.unregisterClient(clientId);
     console.log(`[${new Date().toISOString()}] WebSocket client disconnected: ${clientId}`);
   });
-
+  
   socket.on('error', (err: any) => {
-    console.error(`WebSocket error for ${clientId}:`, err);
+    if (err.code !== 'EPIPE' && err.code !== 'ECONNRESET') {
+      console.error(`WebSocket error for ${clientId}:`, err);
+    }
     handler.unregisterClient(clientId);
   });
 }
 
+function handleRawTcpConnection(socket: any, initialData: Buffer, clientId: string) {
+  handler.registerClient(clientId, socket);
+  
+  let buffer = initialData.toString();
+  
+  // Process initial data
+  const lines = buffer.split('\n');
+  buffer = lines.pop() || '';
+  
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    processLine(socket, clientId, line);
+  }
+  
+  socket.on('data', async (data: Buffer) => {
+    buffer += data.toString();
+    
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      await processLine(socket, clientId, line);
+    }
+  });
+  
+  socket.on('end', () => {
+    handler.unregisterClient(clientId);
+    console.log(`[${new Date().toISOString()}] TCP client disconnected: ${clientId}`);
+  });
+  
+  socket.on('error', (error: any) => {
+    if (error.code !== 'EPIPE' && error.code !== 'ECONNRESET') {
+      console.error(`TCP error for ${clientId}:`, error);
+    }
+    handler.unregisterClient(clientId);
+  });
+}
+
+async function processLine(socket: any, clientId: string, line: string) {
+  try {
+    const message: SocketMessage = JSON.parse(line);
+    await handler.handleMessage(clientId, message);
+  } catch (error: any) {
+    if (error instanceof SyntaxError) {
+      if (socket.writable && !socket.destroyed) {
+        socket.write(JSON.stringify({ 
+          status: 'error', 
+          message: 'Invalid JSON format' 
+        }) + '\n');
+      }
+    } else {
+      console.error(`Error processing message from ${clientId}:`, error);
+    }
+  }
+}
+
 function sendWebSocketMessage(socket: any, data: any) {
+  if (!socket.writable || socket.destroyed) {
+    console.warn('Attempted to write to closed WebSocket');
+    return;
+  }
+  
   const payload = Buffer.from(JSON.stringify(data), 'utf8');
   const payloadLen = payload.length;
 
@@ -309,13 +291,21 @@ function sendWebSocketMessage(socket: any, data: any) {
     header.writeBigUInt64BE(BigInt(payloadLen), 2);
   }
 
-  socket.write(Buffer.concat([header, payload]));
+  try {
+    socket.write(Buffer.concat([header, payload]));
+  } catch (error) {
+    console.error('Error writing to WebSocket:', error);
+  }
 }
 
 // Register the send function with the handler
 handler.setSendWebSocketMessage(sendWebSocketMessage);
 
-
+server.listen(PORT, () => {
+  console.log(`Hybrid server listening on port ${PORT}`);
+  console.log(`- WebSocket: ws://localhost:${PORT}/ws`);
+  console.log(`- Raw TCP: localhost:${PORT}`);
+});
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
