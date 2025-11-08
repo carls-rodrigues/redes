@@ -1,5 +1,8 @@
 import { RegisterForm } from "@/components/register-form"
 
+// Disable prerendering for register page
+export const dynamic = 'force-dynamic'
+
 export default function RegisterPage() {
   return (
     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">

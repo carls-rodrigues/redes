@@ -21,6 +21,7 @@ export declare class ChatService {
     addGroupMember(groupId: string, userId: string): Promise<void>;
     removeGroupMember(groupId: string, userId: string): Promise<void>;
     updateGroupName(groupId: string, newName: string): Promise<void>;
+    deleteGroup(groupId: string): Promise<void>;
     listGroups(): Promise<any[]>;
 }
 export declare class MessageService {

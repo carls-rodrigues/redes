@@ -8,6 +8,7 @@ interface ConversationCardProps {
   unread: boolean
   isSelected: boolean
   onClick: () => void
+  translateTimestamp?: (key: string) => string
 }
 
 export default function ConversationCard({
@@ -17,7 +18,9 @@ export default function ConversationCard({
   unread,
   isSelected,
   onClick,
+  translateTimestamp,
 }: ConversationCardProps) {
+  const displayTimestamp = translateTimestamp ? translateTimestamp(timestamp) : timestamp
   return (
     <button
       onClick={onClick}
@@ -27,7 +30,7 @@ export default function ConversationCard({
     >
       <div className="flex items-start justify-between gap-2 mb-1">
         <h3 className={`text-sm truncate ${unread ? "font-semibold" : "font-medium"}`}>{title}</h3>
-        <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">{timestamp}</span>
+        <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">{displayTimestamp}</span>
       </div>
 
       <p className="text-xs text-muted-foreground truncate">{preview}</p>

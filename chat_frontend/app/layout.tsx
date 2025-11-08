@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { WebSocketProvider } from "@/lib/websocket-context";
 import SessionManager from "@/components/session-manager";
+import { LocaleProvider } from "@/lib/locale-context";
+import { LocaleWrapper } from "@/lib/locale-wrapper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,14 +27,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-hidden`}
       >
-        <WebSocketProvider>
-          <SessionManager />
-          {children}
-        </WebSocketProvider>
+        <LocaleProvider>
+          <LocaleWrapper>
+            <WebSocketProvider>
+              <SessionManager />
+              {children}
+            </WebSocketProvider>
+          </LocaleWrapper>
+        </LocaleProvider>
       </body>
     </html>
   );

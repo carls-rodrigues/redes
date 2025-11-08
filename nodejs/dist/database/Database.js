@@ -26,6 +26,7 @@ class DatabaseManager {
         type TEXT CHECK (type IN ('dm', 'group')) NOT NULL,
         group_id TEXT,
         created_at TEXT,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (group_id) REFERENCES groups(id)
       );
 
@@ -69,6 +70,20 @@ class DatabaseManager {
       CREATE INDEX IF NOT EXISTS idx_chat_participants_user ON chat_participants(user_id);
       CREATE INDEX IF NOT EXISTS idx_chat_participants_chat ON chat_participants(chat_session_id);
     `);
+        // Add updated_at column to existing chat_sessions table if it doesn't exist
+        try {
+            // First check if column exists
+            const tableInfo = this.db.prepare("PRAGMA table_info(chat_sessions)").all();
+            const hasUpdatedAt = tableInfo.some(col => col.name === 'updated_at');
+            if (!hasUpdatedAt) {
+                this.db.exec(`ALTER TABLE chat_sessions ADD COLUMN updated_at TEXT`);
+                // Set updated_at to created_at for existing rows
+                this.db.exec(`UPDATE chat_sessions SET updated_at = created_at WHERE updated_at IS NULL`);
+            }
+        }
+        catch (error) {
+            // Column might already exist, ignore error
+        }
         console.log('✓ Database initialized');
     }
     prepare(sql) {

@@ -3,10 +3,12 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useWebSocket } from '@/lib/websocket-context'
+import { useLocale } from '@/lib/locale-context'
 
 export default function SessionManager() {
   const { lastMessage, handleSessionExpired } = useWebSocket()
   const router = useRouter()
+  const { locale } = useLocale()
 
   // Handle session expiration and redirect
   useEffect(() => {

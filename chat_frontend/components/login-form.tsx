@@ -19,11 +19,14 @@ import { Input } from "@/components/ui/input"
 import { useWebSocket } from "@/lib/websocket-context"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { useTranslations } from 'next-intl';
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
+  const t = useTranslations('login');
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -85,13 +88,13 @@ export function LoginForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle>Login to your account</CardTitle>
+          <CardTitle>{t('title')}</CardTitle>
           <CardDescription>
-            Enter your username and password below to login to your account
+            {t('description')}
             <div className="mt-2 flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
               <span className="text-xs text-muted-foreground">
-                {isConnected ? 'Connected to server' : 'Disconnected from server'}
+                {isConnected ? t('connected') : t('disconnected')}
               </span>
             </div>
           </CardDescription>
@@ -100,11 +103,11 @@ export function LoginForm({
           <form onSubmit={handleSubmit}>
             <FieldGroup>
               <Field>
-                <FieldLabel htmlFor="username">Username</FieldLabel>
+                <FieldLabel htmlFor="username">{t('username')}</FieldLabel>
                 <Input
                   id="username"
                   type="text"
-                  placeholder="Enter your username"
+                  placeholder={t('username').toLowerCase()}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
@@ -113,12 +116,12 @@ export function LoginForm({
               </Field>
               <Field>
                 <div className="flex items-center">
-                  <FieldLabel htmlFor="password">Password</FieldLabel>
+                  <FieldLabel htmlFor="password">{t('password')}</FieldLabel>
                   <a
                     href="#"
                     className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
                   >
-                    Forgot your password?
+                    {t('forgotPassword')}
                   </a>
                 </div>
                 <Input
@@ -143,18 +146,24 @@ export function LoginForm({
                       onClick={reconnectWebSocket}
                       className="mt-2"
                     >
-                      Reconnect
+                      {t('reconnect')}
                     </Button>
                   )}
                 </Field>
               )}
               <Field>
                 <Button type="submit" disabled={isLoading || !isConnected}>
-                  {isLoading ? 'Logging in...' : 'Login'}
+                  {isLoading ? t('loggingIn') : t('login')}
                 </Button>
               </Field>
             </FieldGroup>
           </form>
+          <div className="text-center text-sm mt-4">
+            {t('noAccount')}{" "}
+            <Link href="/register" className="underline underline-offset-4 hover:underline">
+              {t('register')}
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

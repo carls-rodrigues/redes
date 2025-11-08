@@ -18,8 +18,11 @@ import { Input } from "@/components/ui/input"
 import { useWebSocket } from "@/lib/websocket-context"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { useTranslations } from 'next-intl';
 
 export function RegisterForm({ ...props }: React.ComponentProps<typeof Card>) {
+  const t = useTranslations('register');
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -36,12 +39,12 @@ export function RegisterForm({ ...props }: React.ComponentProps<typeof Card>) {
       if ((lastMessage.type === 'register' || lastMessage.status) && lastMessage.status === 'ok') {
         console.log('Registration successful');
         // Registration successful
-        setSuccess('Account created! Please login.');
+        setSuccess(t('accountCreated'));
         setError("");
         setIsLoading(false);
         // Redirect to login after a short delay
         setTimeout(() => {
-          router.push('/login');
+          router.push('./login');
         }, 2000);
       } else if ((lastMessage.type === 'register' || lastMessage.status) && lastMessage.status === 'error') {
         console.log('Registration failed:', lastMessage.message);
@@ -85,13 +88,13 @@ export function RegisterForm({ ...props }: React.ComponentProps<typeof Card>) {
   return (
     <Card {...props}>
       <CardHeader>
-        <CardTitle>Create an account</CardTitle>
+        <CardTitle>{t('title')}</CardTitle>
         <CardDescription>
-          Enter your information below to create your account
+          {t('title').toLowerCase()} com suas informações
           <div className="mt-2 flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
             <span className="text-xs text-muted-foreground">
-              {isConnected ? 'Connected to server' : 'Disconnected from server'}
+              {isConnected ? 'Conectado ao servidor' : 'Desconectado do servidor'}
             </span>
           </div>
         </CardDescription>
@@ -100,11 +103,11 @@ export function RegisterForm({ ...props }: React.ComponentProps<typeof Card>) {
         <form onSubmit={handleSubmit}>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="username">Username</FieldLabel>
+              <FieldLabel htmlFor="username">{t('username')}</FieldLabel>
               <Input
                 id="username"
                 type="text"
-                placeholder="Enter your username"
+                placeholder={t('username').toLowerCase()}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
@@ -112,7 +115,7 @@ export function RegisterForm({ ...props }: React.ComponentProps<typeof Card>) {
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="password">Password</FieldLabel>
+              <FieldLabel htmlFor="password">{t('password')}</FieldLabel>
               <Input
                 id="password"
                 type="password"
@@ -122,12 +125,12 @@ export function RegisterForm({ ...props }: React.ComponentProps<typeof Card>) {
                 disabled={isLoading}
               />
               <FieldDescription>
-                Must be at least 8 characters long.
+                {t('passwordHint')}
               </FieldDescription>
             </Field>
             <Field>
               <FieldLabel htmlFor="confirm-password">
-                Confirm Password
+                {t('confirmPassword')}
               </FieldLabel>
               <Input
                 id="confirm-password"
@@ -137,7 +140,7 @@ export function RegisterForm({ ...props }: React.ComponentProps<typeof Card>) {
                 required
                 disabled={isLoading}
               />
-              <FieldDescription>Please confirm your password.</FieldDescription>
+              <FieldDescription>{t('confirmHint')}</FieldDescription>
             </Field>
             {error && (
               <Field>
@@ -155,11 +158,17 @@ export function RegisterForm({ ...props }: React.ComponentProps<typeof Card>) {
             )}
             <Field>
               <Button type="submit" disabled={isLoading || !isConnected}>
-                {isLoading ? 'Creating Account...' : 'Create Account'}
+                {isLoading ? t('creatingAccount') : t('createAccount')}
               </Button>
             </Field>
           </FieldGroup>
         </form>
+        <div className="text-center text-sm mt-4">
+          {t('haveAccount')}{" "}
+          <Link href="/login" className="underline underline-offset-4 hover:underline">
+            {t('login')}
+          </Link>
+        </div>
       </CardContent>
     </Card>
   )
