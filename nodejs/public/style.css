@@ -1,22 +1,40 @@
 /* RedES Chat - Web Interface with shadcn-inspired Design */
 
 :root {
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
-  --muted: 210 40% 96%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --border: 214.3 31.8% 91.4%;
-  --primary: 222.2 47.4% 11.2%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 210 40% 96%;
-  --secondary-foreground: 222.2 84% 4.9%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
-  --success: 142.1 76.2% 36.3%;
-  --warning: 38 92.1% 50.2%;
-  --info: 199.4 89.1% 48.2%;
+
+  --background: oklch(0.98 0 0);
+  --foreground: oklch(0.154 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.154 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.154 0 0);
+  --primary: oklch(0.267 0.054 262.51);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.94 0 0);
+  --secondary-foreground: oklch(0.154 0 0);
+  --muted: oklch(0.92 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.267 0.054 262.51);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.94 0 0);
+  --input: oklch(0.94 0 0);
+  --ring: oklch(0.267 0.054 262.51);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
   --radius: 0.5rem;
-  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 }
 
 * {
@@ -215,7 +233,7 @@ body {
 }
 
 .conversation-item.active {
-  background-color: hsl(var(--primary));
+  background-color: hsl(var(--muted));
   color: hsl(var(--primary-foreground));
   border-color: hsl(var(--primary));
 }

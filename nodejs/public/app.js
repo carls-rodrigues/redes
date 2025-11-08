@@ -315,10 +315,8 @@ class ChatApp {
 
     this.chats.forEach(chat => {
       const chatElement = document.createElement('div');
-      chatElement.className = 'p-3 rounded-lg bg-card border cursor-pointer hover:bg-muted/50 transition-colors';
-      if (this.currentChat && this.currentChat.id === chat.id) {
-        chatElement.classList.add('bg-primary', 'text-primary-foreground');
-      }
+      const isSelected = this.currentChat && this.currentChat.id === chat.id;
+      chatElement.className = `p-2 rounded-lg cursor-pointer transition-colors ${isSelected ? '!bg-muted text-foreground' : 'text-foreground hover:bg-muted'}`;
 
       // Determine display name: group name for groups, other person for DMs
       let displayName;
@@ -334,8 +332,8 @@ class ChatApp {
       }
 
       chatElement.innerHTML = `
-        <div class="font-medium mb-1">${displayName}</div>
-        <div class="text-sm text-muted-foreground truncate">${chat.last_message}</div>
+        <p class="font-medium mb-1">${displayName}</p>
+        <p class="text-sm truncate">${chat.last_message}</p>
       `;
 
       chatElement.addEventListener('click', () => this.selectChat(chat));
@@ -366,13 +364,8 @@ class ChatApp {
     document.getElementById('messages').classList.remove('hidden');
     document.getElementById('message-input').classList.remove('hidden');
 
-    // Update conversation selection
-    document.querySelectorAll('#conversations-list > div').forEach(item => {
-      item.classList.remove('bg-primary', 'text-primary-foreground');
-      item.classList.add('bg-card', 'text-card-foreground');
-    });
-    event.target.closest('div').classList.remove('bg-card', 'text-card-foreground');
-    event.target.closest('div').classList.add('bg-primary', 'text-primary-foreground');
+    // Refresh chat list to update selection styling
+    this.renderChats();
 
     // Enable message input
     document.getElementById('message-text').disabled = false;
