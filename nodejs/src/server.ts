@@ -4,7 +4,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { SocketHandler } from './handlers/SocketHandler';
 import { SocketMessage } from './types';
 
-const PORT = 5000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 5000;
+const HOST = process.env.HOST || '0.0.0.0';
 const handler = new SocketHandler();
 
 // Create hybrid server that detects protocol
@@ -299,10 +300,10 @@ function sendWebSocketMessage(socket: any, data: any) {
 // Register the send function with the handler
 handler.setSendWebSocketMessage(sendWebSocketMessage);
 
-server.listen(PORT, () => {
-  console.log(`🚀 Chat server started on port ${PORT}`);
-  console.log(`   📡 WebSocket endpoint: ws://localhost:${PORT}/ws`);
-  console.log(`   🔌 Raw TCP endpoint: localhost:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`🚀 Chat server started on ${HOST}:${PORT}`);
+  console.log(`   📡 WebSocket endpoint: ws://${HOST}:${PORT}/ws`);
+  console.log(`   🔌 Raw TCP endpoint: ${HOST}:${PORT}`);
   console.log(`   📊 Ready to handle real-time chat connections`);
 });
 

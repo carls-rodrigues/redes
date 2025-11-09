@@ -1,18 +1,23 @@
 #!/bin/bash
 
 # Redes Chat Backend - College Quick Deploy Script
-# Version 1.1.0 - November 9, 2025
-# Enhanced with real-time socket logging for demonstrations
+# Version 1.1.1 - November 9, 2025
+# Enhanced with real-time socket logging and configurable networking
 #
-# Changes in v1.1.0:
+# Changes in v1.1.1:
+# - Configurable PORT and HOST environment variables
+# - Network binding to all interfaces (0.0.0.0) by default
 # - Enhanced logging for socket interactions
 # - Real-time message flow tracking
 # - Professional logging format for professor demonstrations
-# - Updated Docker image with latest improvements
 
-echo "🎓 Redes Chat Backend - College Deployment"
-echo "=========================================="
-echo "Version 1.1.0 - Enhanced Logging Edition"
+# Default configuration (can be overridden with environment variables)
+PORT=${PORT:-5000}
+HOST=${HOST:-0.0.0.0}
+
+echo "🔧 Configuration:"
+echo "   Port: $PORT"
+echo "   Host: $HOST"
 echo ""
 
 # Colors for output
@@ -58,23 +63,25 @@ cd "$DEPLOY_DIR"
 echo -e "${GREEN}📁 Created deployment directory: $DEPLOY_DIR${NC}"
 
 # Create docker-compose.yml
-cat > docker-compose.yml << 'EOF'
+cat > docker-compose.yml << EOF
 version: '3.8'
 
 services:
   redes-chat-backend:
     image: cerfdotdev/redes_backend:latest
     ports:
-      - "5000:5000"
+      - "$PORT:$PORT"
     environment:
       - NODE_ENV=production
       - DATABASE_PATH=/app/data/redes_chat.db
-      - SOCKET_PORT=5000
+      - SOCKET_PORT=$PORT
+      - PORT=$PORT
+      - HOST=$HOST
     volumes:
       - ./data:/app/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "node", "-e", "require('net').connect(5000, 'localhost', function() { process.exit(0); }).on('error', function() { process.exit(1); })"]
+      test: ["CMD", "node", "-e", "require('net').connect(process.env.PORT || 5000, 'localhost', function() { process.exit(0); }).on('error', function() { process.exit(1); })"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -109,8 +116,9 @@ if docker-compose up -d; then
     echo -e "${GREEN}✅ Service started successfully!${NC}"
     echo ""
     echo "🌐 Access points:"
-    echo "   WebSocket: ws://localhost:5000/ws"
-    echo "   Health check: http://localhost:5000"
+    echo "   WebSocket: ws://$HOST:$PORT/ws"
+    echo "   Raw TCP: $HOST:$PORT"
+    echo "   Health check: http://$HOST:$PORT"
     echo ""
     echo "📊 Check status:"
     echo "   docker-compose ps"

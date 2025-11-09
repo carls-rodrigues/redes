@@ -36,12 +36,12 @@ COPY --from=builder /app/dist ./dist
 # Create data directory for database
 RUN mkdir -p /app/data
 
-# Expose port
-EXPOSE 5000
+# Expose port (configurable via PORT env var, defaults to 5000)
+EXPOSE ${PORT:-5000}
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD node -e "require('net').connect(5000, 'localhost', function() { process.exit(0); }).on('error', function() { process.exit(1); })"
+  CMD node -e "require('net').connect(process.env.PORT || 5000, 'localhost', function() { process.exit(0); }).on('error', function() { process.exit(1); })"
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
