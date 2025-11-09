@@ -533,7 +533,7 @@ export default function ConversationList({ selectedId, onSelect, onToggleMobile 
         {filteredConversations.length === 0 ? (
           <div className="flex-1 flex items-center justify-center p-4">
             <div className="text-sm text-muted-foreground text-center">
-            {userSearchQuery ? t('noConversationsFound') : t('noConversationsYet')}
+            {userSearchQuery ? tCommon('noConversationsFound') : tCommon('noConversationsYet')}
             </div>
           </div>
         ) : (
