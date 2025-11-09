@@ -448,6 +448,156 @@ interface SocketMessage {
 }
 ```
 
+## 📋 **Referência Completa: Tipos de Mensagens**
+
+### 🔐 **Mensagens de Autenticação**
+
+#### `login`
+- **Propósito**: Autenticação do usuário com nome de usuário e senha
+- **Payload**: `{ username: string, password: string }`
+- **Resposta**: `{ status: 'ok', user: {...}, session: {...} }` ou erro
+
+#### `register`
+- **Propósito**: Criar nova conta de usuário
+- **Payload**: `{ username: string, password: string }`
+- **Resposta**: `{ status: 'registered', user_id, username, session_id }` ou erro
+
+#### `auth`
+- **Propósito**: Reautenticar usando token de sessão existente
+- **Payload**: `{ token: string }`
+- **Resposta**: `{ status: 'ok', user: {...}, session: {...} }` ou erro
+
+#### `logout`
+- **Propósito**: Encerrar sessão do usuário e desconectar
+- **Payload**: `{}` (vazio)
+- **Resposta**: `{ status: 'ok', message: 'Logged out successfully' }`
+
+### 💬 **Mensagens de Chat e Mensagens**
+
+#### `get_user_chats`
+- **Propósito**: Obter todos os chats (DMs e grupos) do usuário autenticado
+- **Payload**: `{}` (vazio)
+- **Resposta**: `{ status: 'ok', chats: [...] }`
+
+#### `get_chat`
+- **Propósito**: Obter informações detalhadas do chat incluindo participantes
+- **Payload**: `{ chatId: number }`
+- **Resposta**: `{ status: 'ok', chat: { participants: [...] } }`
+
+#### `get_messages`
+- **Propósito**: Carregar histórico de mensagens de um chat
+- **Payload**: `{ chat_id: number }`
+- **Resposta**: `{ status: 'ok', messages: [...] }`
+
+#### `message`
+- **Propósito**: Enviar uma nova mensagem para um chat
+- **Payload**: `{ chat_id: number, content: string, temp_id?: string }`
+- **Resposta**: `{ status: 'ok', message_id, timestamp }`
+- **Broadcast**: Envia `message:new` para todos os participantes do chat
+
+#### `message:new` *(Recebido)*
+- **Propósito**: Notificação de mensagem em tempo real (enviada pelo servidor)
+- **Payload**: `{ payload: { id, chat_session_id, sender_id, sender_username, content, timestamp } }`
+
+### 👥 **Mensagens de Gerenciamento de Usuários**
+
+#### `search_users`
+- **Propósito**: Pesquisar usuários por nome de usuário
+- **Payload**: `{ query: string }` (string vazia = todos os usuários)
+- **Resposta**: `{ status: 'ok', users: [...] }`
+
+### 👥 **Mensagens de Mensagens Diretas**
+
+#### `create_dm`
+- **Propósito**: Criar ou obter DM existente com outro usuário
+- **Payload**: `{ other_user_id: number }`
+- **Resposta**: `{ status: 'ok', chat_id, chat: {...} }`
+
+### 👥 **Mensagens de Gerenciamento de Grupos**
+
+#### `create_group`
+- **Propósito**: Criar um novo chat em grupo
+- **Payload**: `{ group_name: string, member_ids: number[] }`
+- **Resposta**: `{ status: 'ok', group: {...} }`
+- **Broadcast**: Envia `group:created` para todos os membros
+
+#### `list_groups`
+- **Propósito**: Obter todos os grupos disponíveis
+- **Payload**: `{}` (vazio)
+- **Resposta**: `{ status: 'ok', groups: [...] }`
+
+#### `add_group_member`
+- **Propósito**: Adicionar usuário a um grupo existente (apenas dono)
+- **Payload**: `{ group_id: number, user_id: number }`
+- **Resposta**: `{ status: 'ok', message: 'Member added' }`
+- **Broadcast**: Envia `group:member_added` para o novo membro
+
+#### `remove_group_member`
+- **Propósito**: Remover usuário do grupo (apenas dono)
+- **Payload**: `{ group_id: number, user_id: number }`
+- **Resposta**: `{ status: 'ok', message: 'Member removed' }`
+- **Broadcast**: Envia `group:member_removed` para o usuário removido
+
+#### `update_group_name`
+- **Propósito**: Alterar nome do grupo (apenas dono)
+- **Payload**: `{ group_id: number, new_name: string }`
+- **Resposta**: `{ status: 'ok', message: 'Group name updated' }`
+- **Broadcast**: Envia `group:name_updated` para todos os membros
+
+#### `delete_group`
+- **Propósito**: Excluir grupo inteiro e chat (apenas dono)
+- **Payload**: `{ group_id: number }`
+- **Resposta**: `{ status: 'ok', message: 'Group deleted successfully' }`
+- **Broadcast**: Envia `group:deleted` para todos os ex-membros
+
+### 📡 **Notificações em Tempo Real** *(Apenas enviadas pelo servidor)*
+
+#### `group:created`
+- **Propósito**: Notificar usuário que foi adicionado a um novo grupo
+- **Payload**: `{ payload: group }`
+
+#### `group:member_added`
+- **Propósito**: Notificar usuário que foi adicionado a um grupo
+- **Payload**: `{ payload: { group_id } }`
+
+#### `group:member_removed`
+- **Propósito**: Notificar usuário que foi removido de um grupo
+- **Payload**: `{ payload: { group_id } }`
+
+#### `group:name_updated`
+- **Propósito**: Notificar membros do grupo sobre mudança de nome
+- **Payload**: `{ payload: { group_id, new_name } }`
+
+#### `group:deleted`
+- **Propósito**: Notificar ex-membros que o grupo foi excluído
+- **Payload**: `{ payload: { group_id, message } }`
+
+### 📋 **Formato de Resposta**
+
+Todas as respostas incluem:
+- `status`: `'ok'` ou `'error'`
+- `request_id`: Reflete o ID da requisição do cliente (se fornecido)
+- `message`: Descrição do erro (para respostas de erro)
+
+### 🔄 **Fluxo de Exemplo de Mensagem**
+
+```javascript
+// 1. Login
+cliente.send({ type: 'login', username: 'joao', password: 'senha123' })
+// Resposta: { status: 'ok', user: {...}, session: {...} }
+
+// 2. Obter chats
+cliente.send({ type: 'get_user_chats' })
+// Resposta: { status: 'ok', chats: [...] }
+
+// 3. Enviar mensagem
+cliente.send({ type: 'message', chat_id: 123, content: 'Olá, mundo!' })
+// Resposta: { status: 'ok', message_id: 456, timestamp: '...' }
+// Broadcast: { type: 'message:new', payload: {...} } para todos os participantes
+```
+
+Seu sistema de chat é uma plataforma abrangente de mensagens em tempo real com operações CRUD completas para chats, grupos e usuários! 🚀
+
 ### Processamento de Mensagens
 
 O `SocketHandler` roteia cada mensagem baseada no tipo:
