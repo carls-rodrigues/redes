@@ -99,10 +99,10 @@ echo -e "${GREEN}📄 Created deployment files${NC}"
 echo ""
 
 # Pull the image
-echo "📥 Pulling latest Docker image (v1.1.0 with enhanced logging)..."
+echo "📥 Pulling latest Docker image (v1.1.1 with configurable networking)..."
 if docker pull cerfdotdev/redes_backend:latest; then
     echo -e "${GREEN}✅ Latest image downloaded successfully${NC}"
-    echo -e "${GREEN}   📋 Includes: Enhanced real-time socket logging${NC}"
+    echo -e "${GREEN}   📋 Includes: Configurable PORT/HOST, enhanced socket logging${NC}"
 else
     echo -e "${RED}❌ Failed to download image. Check your internet connection.${NC}"
     exit 1
@@ -124,7 +124,9 @@ if docker-compose up -d; then
     echo "   docker-compose ps"
     echo "   docker-compose logs -f"
     echo ""
-    echo "🔍 Enhanced Logging Features:"
+    echo "🔍 Enhanced Features:"
+    echo "   • Configurable networking (PORT/HOST environment variables)"
+    echo "   • Network binding to all interfaces (0.0.0.0) by default"
     echo "   • Real-time socket connection tracking"
     echo "   • Message flow visualization"
     echo "   • Broadcasting confirmation logs"
