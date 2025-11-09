@@ -2,6 +2,7 @@ node_modules/
 dist/
 .next/
 redes-chat-backend/
+electron/
 *.log
 .env.local
 .env.production.local
