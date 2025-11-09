@@ -26,11 +26,11 @@ const server = net.createServer((socket) => {
     
     // Check if it's an HTTP request (WebSocket upgrade)
     if (dataStr.startsWith('GET ')) {
-      console.log(`[${new Date().toISOString()}] HTTP WebSocket upgrade request detected`);
+      console.log(`[${new Date().toISOString()}] 🔌 WebSocket upgrade initiated by client ${clientId}`);
       handleWebSocketUpgrade(socket, buffer, clientId);
     } else {
       // It's a raw TCP connection
-      console.log(`[${new Date().toISOString()}] Raw TCP client connected: ${clientId}`);
+      console.log(`[${new Date().toISOString()}] 🔌 TCP client connected: ${clientId}`);
       handleRawTcpConnection(socket, buffer, clientId);
     }
   };
@@ -98,18 +98,11 @@ function handleWebSocketUpgrade(socket: any, initialData: Buffer, clientId: stri
     ''
   ].join('\r\n');
   
-  console.log(`[WebSocket] Sending upgrade response to ${clientId}`);
-  
-  if (!socket.writable || socket.destroyed) {
-    console.error('Socket not writable, cannot send upgrade response');
-    return;
-  }
-  
   socket.write(response);
   
   // Register as WebSocket client
   handler.registerWebSocketClient(clientId, socket);
-  console.log(`[${new Date().toISOString()}] WebSocket client connected: ${clientId}`);
+  console.log(`[${new Date().toISOString()}] ✅ WebSocket handshake completed for client ${clientId}`);
   
   // Handle WebSocket frames
   let frameBuffer = Buffer.alloc(0);
@@ -170,9 +163,11 @@ function handleWebSocketUpgrade(socket: any, initialData: Buffer, clientId: stri
         // Text frame
         try {
           const message: SocketMessage = JSON.parse(payload.toString('utf-8'));
+          console.log(`[${new Date().toISOString()}] 📨 Message received from ${clientId}: ${message.type}`);
           await handler.handleMessage(clientId, message);
+          console.log(`[${new Date().toISOString()}] ✅ Message processed: ${message.type} (ID: ${message.request_id || 'N/A'})`);
         } catch (err) {
-          console.error(`Error parsing message from ${clientId}:`, err);
+          console.error(`[${new Date().toISOString()}] ❌ Error parsing message from ${clientId}:`, err);
           sendWebSocketMessage(socket, { type: 'error', message: 'Invalid JSON' });
         }
       } else if (opcode === 0x8) {
@@ -182,12 +177,15 @@ function handleWebSocketUpgrade(socket: any, initialData: Buffer, clientId: stri
         break;
       } else if (opcode === 0x9) {
         // Ping frame - respond with pong
+        console.log(`[${new Date().toISOString()}] 💓 Ping received from ${clientId}`);
         const pongFrame = Buffer.from([0x8a, 0x00]);
         if (socket.writable && !socket.destroyed) {
           socket.write(pongFrame);
+          console.log(`[${new Date().toISOString()}] 💓 Pong sent to ${clientId}`);
         }
       } else if (opcode === 0xa) {
         // Pong frame - ignore
+        console.log(`[${new Date().toISOString()}] 💓 Pong received from ${clientId}`);
       }
       
       frameBuffer = frameBuffer.slice(frameEnd);
@@ -196,7 +194,7 @@ function handleWebSocketUpgrade(socket: any, initialData: Buffer, clientId: stri
   
   socket.on('end', () => {
     handler.unregisterClient(clientId);
-    console.log(`[${new Date().toISOString()}] WebSocket client disconnected: ${clientId}`);
+    console.log(`[${new Date().toISOString()}] 🔌 WebSocket client disconnected: ${clientId}`);
   });
   
   socket.on('error', (err: any) => {
@@ -235,7 +233,7 @@ function handleRawTcpConnection(socket: any, initialData: Buffer, clientId: stri
   
   socket.on('end', () => {
     handler.unregisterClient(clientId);
-    console.log(`[${new Date().toISOString()}] TCP client disconnected: ${clientId}`);
+    console.log(`[${new Date().toISOString()}] 🔌 TCP client disconnected: ${clientId}`);
   });
   
   socket.on('error', (error: any) => {
@@ -302,9 +300,10 @@ function sendWebSocketMessage(socket: any, data: any) {
 handler.setSendWebSocketMessage(sendWebSocketMessage);
 
 server.listen(PORT, () => {
-  console.log(`Hybrid server listening on port ${PORT}`);
-  console.log(`- WebSocket: ws://localhost:${PORT}/ws`);
-  console.log(`- Raw TCP: localhost:${PORT}`);
+  console.log(`🚀 Chat server started on port ${PORT}`);
+  console.log(`   📡 WebSocket endpoint: ws://localhost:${PORT}/ws`);
+  console.log(`   🔌 Raw TCP endpoint: localhost:${PORT}`);
+  console.log(`   📊 Ready to handle real-time chat connections`);
 });
 
 // Graceful shutdown

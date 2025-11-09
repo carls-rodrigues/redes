@@ -46,7 +46,12 @@ export class SocketHandler {
 
   async handleMessage(clientId: string, message: SocketMessage) {
     const client = this.clients.get(clientId);
-    if (!client) return;
+    if (!client) {
+      console.log(`[${new Date().toISOString()}] ⚠️  Message from unknown client ${clientId}: ${message.type}`);
+      return;
+    }
+
+    console.log(`[${new Date().toISOString()}] 🔄 Processing ${message.type} from client ${clientId} (user: ${client.userId || 'unauthenticated'})`);
 
     try {
       switch (message.type) {
@@ -150,25 +155,32 @@ export class SocketHandler {
     try {
       const { username, password } = message;
       if (!username || !password) {
+        console.log(`[${new Date().toISOString()}] ❌ Login failed: missing credentials from ${clientId}`);
         return this.sendError(clientId, 'Username and password required', message.request_id);
       }
 
+      console.log(`[${new Date().toISOString()}] 🔐 Attempting login for user: ${username} (client: ${clientId})`);
       const user = await userService.getUserByUsername(username);
       if (!user) {
+        console.log(`[${new Date().toISOString()}] ❌ Login failed: user ${username} not found`);
         return this.sendError(clientId, 'Invalid credentials', message.request_id);
       }
 
       const isValid = await userService.verifyPassword(password, user.password!);
       if (!isValid) {
+        console.log(`[${new Date().toISOString()}] ❌ Login failed: invalid password for ${username}`);
         return this.sendError(clientId, 'Invalid credentials', message.request_id);
       }
 
+      console.log(`[${new Date().toISOString()}] ✅ Password verified, creating session for ${username}`);
       const session = await userService.createSession(user.id, username);
       const client = this.clients.get(clientId);
       if (client) {
         client.userId = user.id;
         client.session = session;
         this.userSessions.set(user.id, clientId);
+
+        console.log(`[${new Date().toISOString()}] 🎉 User ${username} (ID: ${user.id}) logged in successfully on client ${clientId}`);
 
         const response: any = {
           status: 'ok',
@@ -293,17 +305,22 @@ export class SocketHandler {
   private async handleSendMessage(clientId: string, message: SocketMessage) {
     const client = this.clients.get(clientId);
     if (!client?.session) {
+      console.log(`[${new Date().toISOString()}] ❌ Message send failed: client ${clientId} not authenticated`);
       return this.sendError(clientId, 'Not authenticated', message.request_id);
     }
 
     const { chat_id, content } = message;
     if (!chat_id || !content) {
+      console.log(`[${new Date().toISOString()}] ❌ Message send failed: missing chat_id or content from ${clientId}`);
       return this.sendError(clientId, 'chat_id and content required', message.request_id);
     }
 
+    console.log(`[${new Date().toISOString()}] 💾 Saving message to database: chat ${chat_id}, user ${client.session.user_id}`);
     const msg = await messageService.sendMessage(chat_id, client.session.user_id, content);
+    console.log(`[${new Date().toISOString()}] ✅ Message saved with ID: ${msg.id}`);
 
     // Send confirmation to sender
+    console.log(`[${new Date().toISOString()}] 📤 Sending confirmation to sender ${clientId}`);
     const response: any = {
       status: 'ok',
       message_id: msg.id,
@@ -315,10 +332,15 @@ export class SocketHandler {
     this.sendMessage(clientId, response);
 
     // Broadcast message to ALL participants (including sender)
+    console.log(`[${new Date().toISOString()}] 📢 Broadcasting message ${msg.id} to chat ${chat_id} participants`);
     const participants = await chatService.getChatParticipants(chat_id);
+    console.log(`[${new Date().toISOString()}] 👥 Found ${participants.length} participants in chat ${chat_id}`);
+
+    let broadcastCount = 0;
     for (const participant of participants) {
       const receiverClientId = this.userSessions.get(participant.id);
       if (receiverClientId) {
+        console.log(`[${new Date().toISOString()}] 📤 Sending to participant ${participant.id} (client: ${receiverClientId})`);
         this.sendMessage(receiverClientId, {
           type: 'message:new',
           payload: {
@@ -330,8 +352,12 @@ export class SocketHandler {
             timestamp: msg.timestamp
           }
         });
+        broadcastCount++;
+      } else {
+        console.log(`[${new Date().toISOString()}] ⚠️  Participant ${participant.id} not online, skipping`);
       }
     }
+    console.log(`[${new Date().toISOString()}] ✅ Message broadcast completed: ${broadcastCount}/${participants.length} participants received`);
   }
 
   private async handleSearchUsers(clientId: string, message: SocketMessage) {

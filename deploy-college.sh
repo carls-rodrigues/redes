@@ -1,10 +1,18 @@
 #!/bin/bash
 
 # Redes Chat Backend - College Quick Deploy Script
-# Version 1.0.0 - November 9, 2025
+# Version 1.1.0 - November 9, 2025
+# Enhanced with real-time socket logging for demonstrations
+#
+# Changes in v1.1.0:
+# - Enhanced logging for socket interactions
+# - Real-time message flow tracking
+# - Professional logging format for professor demonstrations
+# - Updated Docker image with latest improvements
 
 echo "🎓 Redes Chat Backend - College Deployment"
 echo "=========================================="
+echo "Version 1.1.0 - Enhanced Logging Edition"
 echo ""
 
 # Colors for output
@@ -84,9 +92,10 @@ echo -e "${GREEN}📄 Created deployment files${NC}"
 echo ""
 
 # Pull the image
-echo "📥 Pulling Docker image..."
+echo "📥 Pulling latest Docker image (v1.1.0 with enhanced logging)..."
 if docker pull cerfdotdev/redes_backend:latest; then
-    echo -e "${GREEN}✅ Image downloaded successfully${NC}"
+    echo -e "${GREEN}✅ Latest image downloaded successfully${NC}"
+    echo -e "${GREEN}   📋 Includes: Enhanced real-time socket logging${NC}"
 else
     echo -e "${RED}❌ Failed to download image. Check your internet connection.${NC}"
     exit 1
@@ -107,7 +116,15 @@ if docker-compose up -d; then
     echo "   docker-compose ps"
     echo "   docker-compose logs -f"
     echo ""
-    echo -e "${GREEN}🎓 Ready for college use!${NC}"
+    echo "🔍 Enhanced Logging Features:"
+    echo "   • Real-time socket connection tracking"
+    echo "   • Message flow visualization"
+    echo "   • Broadcasting confirmation logs"
+    echo "   • Authentication success indicators"
+    echo ""
+    echo -e "${GREEN}🎓 Ready for college demonstration!${NC}"
+    echo ""
+    echo "💡 Pro tip: Run 'docker-compose logs -f' to see live socket interactions!"
 else
     echo -e "${RED}❌ Failed to start service. Check the logs:${NC}"
     echo "   docker-compose logs"

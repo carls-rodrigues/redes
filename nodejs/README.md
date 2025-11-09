@@ -2,6 +2,15 @@
 
 Backend reescrito em Node.js com TypeScript para melhor performance de mensagens em tempo real.
 
+**Version 1.1.0** - Enhanced with real-time socket logging for demonstrations
+
+## ✨ New in v1.1.0
+
+- 🔍 **Enhanced Logging**: Real-time socket interaction tracking
+- 📊 **Message Flow Visualization**: Complete request/response logging
+- 🎯 **Professional Demo Format**: Perfect for college presentations
+- 🚀 **Docker Ready**: Updated container with latest improvements
+
 ## Estrutura do Projeto
 
 ```
