@@ -1,6 +1,8 @@
 node_modules/
 dist/
 .next/
+redes-chat-backend/
 *.log
 .env.local
 .env.production.local
+.idea/

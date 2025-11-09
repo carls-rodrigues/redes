@@ -85,23 +85,20 @@ export function useWebSocket(config: WebSocketConfig = {}): WebSocketHook {
   }, []);
 
   const sendMessage = useCallback((message: WebSocketMessage): number | null => {
-    console.log('sendMessage called with:', message);
-    console.log('WebSocket readyState:', wsRef.current?.readyState);
-    
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       const requestId = ++requestIdRef.current;
       const messageWithId = {
         ...message,
         request_id: requestId
       };
-      
-      console.log('Sending WebSocket message:', messageWithId);
+
+      console.log(`[${new Date().toISOString()}] 📤 Client sending: ${message.type} (ID: ${requestId})`);
       
       // Set timeout for this request
       const timeoutId = setTimeout(() => {
         if (pendingRequestsRef.current.has(requestId)) {
           pendingRequestsRef.current.delete(requestId);
-          console.warn(`Request ${requestId} timed out`);
+          console.warn(`[${new Date().toISOString()}] ⏰ Request ${requestId} (${message.type}) timed out`);
         }
       }, finalConfig.requestTimeout);
       
@@ -114,14 +111,14 @@ export function useWebSocket(config: WebSocketConfig = {}): WebSocketHook {
         wsRef.current.send(JSON.stringify(messageWithId));
         return requestId;
       } catch (error) {
-        console.error('Failed to send WebSocket message:', error);
+        console.error(`[${new Date().toISOString()}] ❌ Failed to send ${message.type} (ID: ${requestId}):`, error);
         clearTimeout(timeoutId);
         pendingRequestsRef.current.delete(requestId);
         setError(`Failed to send message: ${error}`);
         return null;
       }
     } else {
-      console.warn('WebSocket is not connected');
+      console.warn(`[${new Date().toISOString()}] ⚠️  Cannot send ${message.type}: WebSocket not connected`);
       setError('WebSocket is not connected');
       return null;
     }
@@ -166,25 +163,25 @@ export function useWebSocket(config: WebSocketConfig = {}): WebSocketHook {
       `${finalConfig.hostname || window.location.hostname}:` +
       `${finalConfig.port}${finalConfig.endpoint}`;
 
-    console.log('Attempting to connect to WebSocket:', wsUrl);
+    console.log(`[${new Date().toISOString()}] 🔌 Connecting to WebSocket: ${wsUrl}`);
     
     try {
       wsRef.current = new WebSocket(wsUrl);
     } catch (error) {
-      console.error('Failed to create WebSocket:', error);
+      console.error(`[${new Date().toISOString()}] ❌ Failed to create WebSocket:`, error);
       setError(`Failed to create WebSocket: ${error}`);
       
       // Schedule reconnect if auto-reconnect is enabled
       if (finalConfig.autoReconnect && !isUnmountingRef.current) {
         const delay = getReconnectDelay();
-        console.log(`Scheduling reconnect in ${delay}ms`);
+        console.log(`[${new Date().toISOString()}] 🔄 Scheduling reconnect in ${delay}ms (attempt ${reconnectAttemptsRef.current})`);
         reconnectTimeoutRef.current = setTimeout(() => connect(), delay);
       }
       return;
     }
 
     wsRef.current.onopen = () => {
-      console.log('✅ WebSocket connected successfully to:', wsUrl);
+      console.log(`[${new Date().toISOString()}] 🔌 WebSocket connected to ${wsUrl}`);
       setIsConnected(true);
       setError(null);
       reconnectAttemptsRef.current = 0; // Reset reconnect attempts on success
@@ -195,6 +192,7 @@ export function useWebSocket(config: WebSocketConfig = {}): WebSocketHook {
         if (sessionData) {
           const session = JSON.parse(sessionData);
           if (session.session_id) {
+            console.log(`[${new Date().toISOString()}] 🔐 Auto-authenticating with existing session`);
             sendMessage({
               type: 'auth',
               token: session.session_id
@@ -202,14 +200,14 @@ export function useWebSocket(config: WebSocketConfig = {}): WebSocketHook {
           }
         }
       } catch (error) {
-        console.error('Failed to read or parse session from localStorage:', error);
+        // Silently fail - session might be corrupted, will require manual login
       }
     };
 
     wsRef.current.onmessage = (event) => {
       try {
         const message: WebSocketResponse = JSON.parse(event.data);
-        console.log('WebSocket message received:', message);
+        console.log(`[${new Date().toISOString()}] 📨 Message received: ${message.type || 'unknown'}${message.request_id ? ` (response to ${message.request_id})` : ''}`);
         
         // Always set lastMessage for any incoming message
         setLastMessage(message);
@@ -220,24 +218,19 @@ export function useWebSocket(config: WebSocketConfig = {}): WebSocketHook {
           if (request) {
             clearTimeout(request.timeoutId);
             pendingRequestsRef.current.delete(message.request_id);
-            console.log('Matched response to request:', message.request_id);
+            console.log(`[${new Date().toISOString()}] ✅ Request ${message.request_id} completed successfully`);
           }
         } else if (message.request_id) {
-          console.log('Received response with request_id but no matching pending request:', message.request_id);
+          console.log(`[${new Date().toISOString()}] ⚠️  Received response ${message.request_id} but no matching pending request`);
         }
       } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
+        console.error(`[${new Date().toISOString()}] ❌ Error parsing WebSocket message:`, error);
         setError('Failed to parse WebSocket message');
       }
     };
 
     wsRef.current.onclose = (event) => {
-      console.log('❌ WebSocket disconnected:', {
-        code: event.code,
-        reason: event.reason,
-        wasClean: event.wasClean,
-        url: wsUrl
-      });
+      console.log(`[${new Date().toISOString()}] 🔌 WebSocket disconnected from ${wsUrl} (code: ${event.code}, clean: ${event.wasClean})`);
       setIsConnected(false);
       clearPendingRequests();
 
@@ -245,23 +238,19 @@ export function useWebSocket(config: WebSocketConfig = {}): WebSocketHook {
       if (finalConfig.autoReconnect && !isUnmountingRef.current) {
         clearReconnectTimeout();
         const delay = getReconnectDelay();
-        console.log(`Scheduling reconnect in ${delay}ms (attempt ${reconnectAttemptsRef.current})`);
+        console.log(`[${new Date().toISOString()}] 🔄 Scheduling reconnect to ${wsUrl} in ${delay}ms (attempt ${reconnectAttemptsRef.current})`);
         reconnectTimeoutRef.current = setTimeout(() => connect(), delay);
       }
     };
 
     wsRef.current.onerror = (event) => {
-      console.error('❌ WebSocket error:', {
-        event,
-        url: wsUrl,
-        readyState: wsRef.current?.readyState
-      });
+      console.error(`[${new Date().toISOString()}] ❌ WebSocket error on ${wsUrl}`);
       setError(`WebSocket connection error`);
     };
   }, [sendMessage, getReconnectDelay, clearReconnectTimeout, clearPendingRequests]);
 
   const reconnect = useCallback(() => {
-    console.log('Manual reconnect triggered');
+    console.log(`[${new Date().toISOString()}] 🔄 Manual reconnect triggered`);
     reconnectAttemptsRef.current = 0; // Reset attempts for manual reconnect
     disconnect();
     isUnmountingRef.current = false;

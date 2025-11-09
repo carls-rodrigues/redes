@@ -121,23 +121,12 @@ export default function ConversationList({ selectedId, onSelect, onToggleMobile 
   // Listen for WebSocket responses
   useEffect(() => {
     if (lastMessage) {
-      console.log({ lastMessage })
-
       // Handle get_user_chats response
       if (lastMessage.chats || lastMessage.data) {
-        console.log('Received chats response:', lastMessage)
         const chats = lastMessage.chats || lastMessage.data || []
-        console.log('Chats array:', chats)
         const transformedConversations = chats.map((chat: any) => {
-          console.log('Transforming chat:', chat.id, {
-            updated_at: chat.updated_at,
-            last_message_time: chat.last_message_time,
-            created_at: chat.created_at,
-            type: chat.type
-          })
           return transformChatToConversation(chat)
         })
-        console.log('Transformed conversations:', transformedConversations)
         setConversations(transformedConversations)
       }
 
