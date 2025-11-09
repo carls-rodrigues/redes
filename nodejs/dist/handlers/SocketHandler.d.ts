@@ -17,6 +17,7 @@ export declare class SocketHandler {
     private handleGetChat;
     private handleGetMessages;
     private handleSendMessage;
+    private handleMarkRead;
     private handleSearchUsers;
     private handleCreateDM;
     private handleCreateGroup;

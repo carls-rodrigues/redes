@@ -276,9 +276,20 @@ class MessageService {
         });
         return { id, chat_session_id: chatId, sender_id: senderId, content, timestamp };
     }
-    async getMessages(chatId, limit = 50) {
+    async getMessages(chatId, userId, limit = 50) {
+        // If userId is provided, mark unread messages from other users as read
+        if (userId) {
+            const markAsReadStmt = Database_1.default.prepare(`
+        UPDATE messages 
+        SET read_at = ?, read_by = ? 
+        WHERE chat_session_id = ? 
+        AND sender_id != ? 
+        AND (read_at IS NULL OR read_by IS NULL)
+      `);
+            markAsReadStmt.run(new Date().toISOString(), JSON.stringify([userId]), chatId, userId);
+        }
         const query = `
-      SELECT m.id, m.content, m.timestamp, m.sender_id, m.chat_session_id,
+      SELECT m.id, m.content, m.timestamp, m.sender_id, m.chat_session_id, m.read_at, m.read_by,
         u.username as sender_username
       FROM messages m
       JOIN users u ON m.sender_id = u.id
@@ -288,7 +299,75 @@ class MessageService {
     `;
         const stmt = Database_1.default.prepare(query);
         const messages = stmt.all(chatId, limit);
-        return messages.reverse(); // Return in chronological order
+        // Parse read_by JSON for each message
+        const parsedMessages = messages.map(msg => ({
+            ...msg,
+            read_by: msg.read_by ? JSON.parse(msg.read_by) : null
+        }));
+        return parsedMessages.reverse(); // Return in chronological order
+    }
+    async markMessagesAsRead(chatId, userId, messageIds) {
+        const now = new Date().toISOString();
+        if (messageIds && messageIds.length > 0) {
+            // Mark specific messages as read
+            for (const messageId of messageIds) {
+                // Get current read_by value
+                const getStmt = Database_1.default.prepare('SELECT read_by FROM messages WHERE id = ?');
+                const current = getStmt.get(messageId);
+                let readByArray = [];
+                if (current?.read_by) {
+                    try {
+                        readByArray = JSON.parse(current.read_by);
+                    }
+                    catch (e) {
+                        // If it's not JSON, treat as single user
+                        readByArray = [current.read_by];
+                    }
+                }
+                // Add user if not already in the array
+                if (!readByArray.includes(userId)) {
+                    readByArray.push(userId);
+                }
+                const stmt = Database_1.default.prepare(`
+          UPDATE messages 
+          SET read_at = ?, read_by = ? 
+          WHERE id = ? 
+          AND sender_id != ?
+          AND (read_at IS NULL OR read_by IS NULL OR read_by NOT LIKE ?)
+        `);
+                stmt.run(now, JSON.stringify(readByArray), messageId, userId, `%${userId}%`);
+            }
+        }
+        else {
+            // Mark all unread messages in the chat as read
+            const getUnreadStmt = Database_1.default.prepare(`
+        SELECT id, read_by FROM messages 
+        WHERE chat_session_id = ? 
+        AND sender_id != ?
+        AND (read_at IS NULL OR read_by IS NULL)
+      `);
+            const unreadMessages = getUnreadStmt.all(chatId, userId);
+            for (const message of unreadMessages) {
+                let readByArray = [];
+                if (message.read_by) {
+                    try {
+                        readByArray = JSON.parse(message.read_by);
+                    }
+                    catch (e) {
+                        readByArray = [message.read_by];
+                    }
+                }
+                if (!readByArray.includes(userId)) {
+                    readByArray.push(userId);
+                }
+                const stmt = Database_1.default.prepare(`
+          UPDATE messages 
+          SET read_at = ?, read_by = ? 
+          WHERE id = ?
+        `);
+                stmt.run(now, JSON.stringify(readByArray), message.id);
+            }
+        }
     }
 }
 exports.MessageService = MessageService;

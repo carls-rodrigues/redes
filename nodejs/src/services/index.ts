@@ -355,9 +355,21 @@ export class MessageService {
     return { id, chat_session_id: chatId, sender_id: senderId, content, timestamp };
   }
 
-  async getMessages(chatId: string, limit: number = 50): Promise<Message[]> {
+  async getMessages(chatId: string, userId?: string, limit: number = 50): Promise<Message[]> {
+    // If userId is provided, mark unread messages from other users as read
+    if (userId) {
+      const markAsReadStmt = db.prepare(`
+        UPDATE messages 
+        SET read_at = ?, read_by = ? 
+        WHERE chat_session_id = ? 
+        AND sender_id != ? 
+        AND (read_at IS NULL OR read_by IS NULL)
+      `);
+      markAsReadStmt.run(new Date().toISOString(), JSON.stringify([userId]), chatId, userId);
+    }
+
     const query = `
-      SELECT m.id, m.content, m.timestamp, m.sender_id, m.chat_session_id,
+      SELECT m.id, m.content, m.timestamp, m.sender_id, m.chat_session_id, m.read_at, m.read_by,
         u.username as sender_username
       FROM messages m
       JOIN users u ON m.sender_id = u.id
@@ -366,8 +378,83 @@ export class MessageService {
       LIMIT ?
     `;
     const stmt = db.prepare(query);
-    const messages = stmt.all(chatId, limit) as Message[];
-    return messages.reverse(); // Return in chronological order
+    const messages = stmt.all(chatId, limit) as any[];
+    
+    // Parse read_by JSON for each message
+    const parsedMessages = messages.map(msg => ({
+      ...msg,
+      read_by: msg.read_by
+    }));
+    
+    return parsedMessages.reverse(); // Return in chronological order
+  }
+
+  async markMessagesAsRead(chatId: string, userId: string, messageIds?: string[]): Promise<void> {
+    const now = new Date().toISOString();
+    
+    if (messageIds && messageIds.length > 0) {
+      // Mark specific messages as read
+      for (const messageId of messageIds) {
+        // Get current read_by value
+        const getStmt = db.prepare('SELECT read_by FROM messages WHERE id = ?');
+        const current = getStmt.get(messageId) as any;
+        
+        let readByArray: string[] = [];
+        if (current?.read_by) {
+          try {
+            readByArray = JSON.parse(current.read_by);
+          } catch (e) {
+            // If it's not JSON, treat as single user
+            readByArray = [current.read_by];
+          }
+        }
+        
+        // Add user if not already in the array
+        if (!readByArray.includes(userId)) {
+          readByArray.push(userId);
+        }
+        
+        const stmt = db.prepare(`
+          UPDATE messages 
+          SET read_at = ?, read_by = ? 
+          WHERE id = ? 
+          AND sender_id != ?
+          AND (read_at IS NULL OR read_by IS NULL OR read_by NOT LIKE ?)
+        `);
+        stmt.run(now, JSON.stringify(readByArray), messageId, userId, `%${userId}%`);
+      }
+    } else {
+      // Mark all unread messages in the chat as read
+      const getUnreadStmt = db.prepare(`
+        SELECT id, read_by FROM messages 
+        WHERE chat_session_id = ? 
+        AND sender_id != ?
+        AND (read_at IS NULL OR read_by IS NULL)
+      `);
+      const unreadMessages = getUnreadStmt.all(chatId, userId) as any[];
+      
+      for (const message of unreadMessages) {
+        let readByArray: string[] = [];
+        if (message.read_by) {
+          try {
+            readByArray = JSON.parse(message.read_by);
+          } catch (e) {
+            readByArray = [message.read_by];
+          }
+        }
+        
+        if (!readByArray.includes(userId)) {
+          readByArray.push(userId);
+        }
+        
+        const stmt = db.prepare(`
+          UPDATE messages 
+          SET read_at = ?, read_by = ? 
+          WHERE id = ?
+        `);
+        stmt.run(now, JSON.stringify(readByArray), message.id);
+      }
+    }
   }
 }
 

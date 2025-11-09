@@ -24,6 +24,8 @@ export interface Message {
     sender_username?: string;
     content: string;
     timestamp: string;
+    read_at?: string;
+    read_by?: string;
 }
 export interface Chat {
     id: string;

@@ -46,8 +46,11 @@ class DatabaseManager {
         sender_id TEXT NOT NULL,
         content TEXT NOT NULL,
         timestamp TEXT,
+        read_at TEXT,
+        read_by TEXT,
         FOREIGN KEY (chat_session_id) REFERENCES chat_sessions(id),
-        FOREIGN KEY (sender_id) REFERENCES users(id)
+        FOREIGN KEY (sender_id) REFERENCES users(id),
+        FOREIGN KEY (read_by) REFERENCES users(id)
       );
 
       CREATE TABLE IF NOT EXISTS groups (
@@ -84,6 +87,22 @@ class DatabaseManager {
       }
     } catch (error) {
       // Column might already exist, ignore error
+    }
+
+    // Add read_at and read_by columns to existing messages table if they don't exist
+    try {
+      const tableInfo = this.db.prepare("PRAGMA table_info(messages)").all() as any[];
+      const hasReadAt = tableInfo.some(col => col.name === 'read_at');
+      const hasReadBy = tableInfo.some(col => col.name === 'read_by');
+      
+      if (!hasReadAt) {
+        this.db.exec(`ALTER TABLE messages ADD COLUMN read_at TEXT`);
+      }
+      if (!hasReadBy) {
+        this.db.exec(`ALTER TABLE messages ADD COLUMN read_by TEXT`);
+      }
+    } catch (error) {
+      // Columns might already exist, ignore error
     }
 
     console.log('✓ Database initialized');

@@ -59,6 +59,9 @@ class SocketHandler {
                 case 'message':
                     await this.handleSendMessage(clientId, message);
                     break;
+                case 'mark_read':
+                    await this.handleMarkRead(clientId, message);
+                    break;
                 case 'search_users':
                     await this.handleSearchUsers(clientId, message);
                     break;
@@ -249,7 +252,7 @@ class SocketHandler {
         if (!chat_id) {
             return this.sendError(clientId, 'chat_id required', message.request_id);
         }
-        const messages = await services_1.messageService.getMessages(chat_id);
+        const messages = await services_1.messageService.getMessages(chat_id, client.session.user_id);
         const response = {
             status: 'ok',
             messages
@@ -296,6 +299,54 @@ class SocketHandler {
                     }
                 });
             }
+        }
+    }
+    async handleMarkRead(clientId, message) {
+        const client = this.clients.get(clientId);
+        if (!client?.session) {
+            return this.sendError(clientId, 'Not authenticated', message.request_id);
+        }
+        const { chat_id, message_ids, user_id } = message;
+        if (!chat_id) {
+            return this.sendError(clientId, 'chat_id required', message.request_id);
+        }
+        // Use the provided user_id or fall back to session user_id
+        const targetUserId = user_id || client.session.user_id;
+        try {
+            await services_1.messageService.markMessagesAsRead(chat_id, targetUserId, message_ids);
+            // Send confirmation to the client
+            const response = {
+                status: 'ok',
+                type: 'messages_read',
+                chat_id,
+                user_id: targetUserId,
+                message_ids: message_ids || []
+            };
+            if (message.request_id) {
+                response.request_id = message.request_id;
+            }
+            this.sendMessage(clientId, response);
+            // Broadcast read receipt update to other participants
+            const participants = await services_1.chatService.getChatParticipants(chat_id);
+            for (const participant of participants) {
+                if (participant.id !== targetUserId) { // Don't send to the user who marked as read
+                    const receiverClientId = this.userSessions.get(participant.id);
+                    if (receiverClientId) {
+                        this.sendMessage(receiverClientId, {
+                            type: 'messages_read',
+                            read_updates: message_ids ? message_ids.map((id) => ({
+                                message_id: id,
+                                read_by: targetUserId,
+                                read_at: new Date().toISOString()
+                            })) : []
+                        });
+                    }
+                }
+            }
+        }
+        catch (error) {
+            console.error('Error marking messages as read:', error);
+            this.sendError(clientId, 'Failed to mark messages as read', message.request_id);
         }
     }
     async handleSearchUsers(clientId, message) {

@@ -1,0 +1,115 @@
+#!/bin/bash
+
+# Redes Chat Backend - College Quick Deploy Script
+# Version 1.0.0 - November 9, 2025
+
+echo "🎓 Redes Chat Backend - College Deployment"
+echo "=========================================="
+echo ""
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Check if Docker is installed
+if ! command -v docker &> /dev/null; then
+    echo -e "${RED}❌ Docker is not installed. Please install Docker first.${NC}"
+    echo "   Visit: https://docs.docker.com/get-docker/"
+    exit 1
+fi
+
+# Check if docker-compose is available
+if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+    echo -e "${RED}❌ docker-compose is not available. Please install docker-compose.${NC}"
+    echo "   Visit: https://docs.docker.com/compose/install/"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ Docker environment ready${NC}"
+echo ""
+
+# Create deployment directory
+DEPLOY_DIR="redes-chat-backend"
+if [ -d "$DEPLOY_DIR" ]; then
+    echo -e "${YELLOW}⚠️  Deployment directory '$DEPLOY_DIR' already exists.${NC}"
+    read -p "Remove and recreate? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        rm -rf "$DEPLOY_DIR"
+    else
+        echo "Exiting..."
+        exit 1
+    fi
+fi
+
+mkdir -p "$DEPLOY_DIR"
+cd "$DEPLOY_DIR"
+
+echo -e "${GREEN}📁 Created deployment directory: $DEPLOY_DIR${NC}"
+
+# Create docker-compose.yml
+cat > docker-compose.yml << 'EOF'
+version: '3.8'
+
+services:
+  redes-chat-backend:
+    image: cerfdotdev/redes_backend:latest
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_PATH=/app/data/redes_chat.db
+      - SOCKET_PORT=5000
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect(5000, 'localhost', function() { process.exit(0); }).on('error', function() { process.exit(1); })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  data:
+    driver: local
+EOF
+
+# Create data directory
+mkdir -p data
+
+echo -e "${GREEN}📄 Created deployment files${NC}"
+echo ""
+
+# Pull the image
+echo "📥 Pulling Docker image..."
+if docker pull cerfdotdev/redes_backend:latest; then
+    echo -e "${GREEN}✅ Image downloaded successfully${NC}"
+else
+    echo -e "${RED}❌ Failed to download image. Check your internet connection.${NC}"
+    exit 1
+fi
+
+echo ""
+echo "🚀 Starting Redes Chat Backend..."
+
+# Start the service
+if docker-compose up -d; then
+    echo -e "${GREEN}✅ Service started successfully!${NC}"
+    echo ""
+    echo "🌐 Access points:"
+    echo "   WebSocket: ws://localhost:5000/ws"
+    echo "   Health check: http://localhost:5000"
+    echo ""
+    echo "📊 Check status:"
+    echo "   docker-compose ps"
+    echo "   docker-compose logs -f"
+    echo ""
+    echo -e "${GREEN}🎓 Ready for college use!${NC}"
+else
+    echo -e "${RED}❌ Failed to start service. Check the logs:${NC}"
+    echo "   docker-compose logs"
+    exit 1
+fi

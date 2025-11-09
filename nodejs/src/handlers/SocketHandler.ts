@@ -279,7 +279,7 @@ export class SocketHandler {
       return this.sendError(clientId, 'chat_id required', message.request_id);
     }
 
-    const messages = await messageService.getMessages(chat_id);
+    const messages = await messageService.getMessages(chat_id, client.session.user_id);
     const response: any = {
       status: 'ok',
       messages

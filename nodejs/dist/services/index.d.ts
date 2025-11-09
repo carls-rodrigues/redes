@@ -26,7 +26,8 @@ export declare class ChatService {
 }
 export declare class MessageService {
     sendMessage(chatId: string, senderId: string, content: string): Promise<Message>;
-    getMessages(chatId: string, limit?: number): Promise<Message[]>;
+    getMessages(chatId: string, userId?: string, limit?: number): Promise<Message[]>;
+    markMessagesAsRead(chatId: string, userId: string, messageIds?: string[]): Promise<void>;
 }
 export declare const userService: UserService;
 export declare const chatService: ChatService;
