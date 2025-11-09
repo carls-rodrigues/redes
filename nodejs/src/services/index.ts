@@ -35,7 +35,7 @@ export class UserService {
     const sessionId = uuidv4();
     const createdAt = new Date().toISOString();
 
-    // Delete any existing sessions for this user
+    // Excluir sessões existentes para este usuário
     await this.deleteUserSessions(userId);
 
     const stmt = db.prepare(
@@ -154,7 +154,7 @@ export class ChatService {
   }
 
   async createOrGetDM(userId1: string, userId2: string): Promise<string> {
-    // Check if DM already exists
+    // Verificar se DM já existe
     const checkQuery = `
       SELECT cs.id FROM chat_sessions cs
       WHERE cs.type = 'dm' AND cs.id IN (
@@ -167,7 +167,7 @@ export class ChatService {
     const existing = checkStmt.get(userId1, userId2) as any;
     if (existing) return existing.id;
 
-    // Create new DM
+    // Criar novo DM
     const chatId = uuidv4();
     const createdAt = new Date().toISOString();
 
@@ -197,19 +197,19 @@ export class ChatService {
     const createdAt = new Date().toISOString();
 
     db.transaction(() => {
-      // Create group
+      // Criar grupo
       const insertGroup = db.prepare(
         'INSERT INTO groups (id, name, creator_id, created_at) VALUES (?, ?, ?, ?)'
       );
       insertGroup.run(groupId, groupName, creatorId, createdAt);
 
-      // Create chat session for group
+      // Criar sessão de chat para o grupo
       const insertChat = db.prepare(
         'INSERT INTO chat_sessions (id, type, group_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
       );
       insertChat.run(chatId, 'group', groupId, createdAt, createdAt);
 
-      // Add all members (including creator)
+      // Adicionar todos os membros (incluindo o criador)
       const allMembers = [creatorId, ...memberIds.filter(id => id !== creatorId)];
       const insertParticipant = db.prepare(
         'INSERT INTO chat_participants (id, chat_session_id, user_id, joined_at) VALUES (?, ?, ?, ?)'
@@ -236,7 +236,7 @@ export class ChatService {
   }
 
   async addGroupMember(groupId: string, userId: string): Promise<void> {
-    // Get chat_session_id for this group
+    // Obter chat_session_id para este grupo
     const getChatStmt = db.prepare('SELECT id FROM chat_sessions WHERE group_id = ?');
     const chatSession = getChatStmt.get(groupId) as any;
 
@@ -249,7 +249,7 @@ export class ChatService {
       );
       stmt.run(uuidv4(), chatSession.id, userId, createdAt);
 
-      // Update chat session's updated_at
+      // Atualizar updated_at da sessão de chat
       const updateStmt = db.prepare(
         'UPDATE chat_sessions SET updated_at = ? WHERE id = ?'
       );
@@ -258,7 +258,7 @@ export class ChatService {
   }
 
   async removeGroupMember(groupId: string, userId: string): Promise<void> {
-    // Get chat_session_id for this group
+    // Obter chat_session_id para este grupo
     const getChatStmt = db.prepare('SELECT id FROM chat_sessions WHERE group_id = ?');
     const chatSession = getChatStmt.get(groupId) as any;
 
@@ -271,7 +271,7 @@ export class ChatService {
       );
       stmt.run(chatSession.id, userId);
 
-      // Update chat session's updated_at
+      // Atualizar updated_at da sessão de chat
       const updateStmt = db.prepare(
         'UPDATE chat_sessions SET updated_at = ? WHERE id = ?'
       );
@@ -280,7 +280,7 @@ export class ChatService {
   }
 
   async updateGroupName(groupId: string, newName: string): Promise<void> {
-    // Get chat_session_id for this group
+    // Obter chat_session_id para este grupo
     const getChatStmt = db.prepare('SELECT id FROM chat_sessions WHERE group_id = ?');
     const chatSession = getChatStmt.get(groupId) as any;
 
@@ -291,7 +291,7 @@ export class ChatService {
       const stmt = db.prepare('UPDATE groups SET name = ? WHERE id = ?');
       stmt.run(newName, groupId);
 
-      // Update chat session's updated_at
+      // Atualizar updated_at da sessão de chat
       const updateStmt = db.prepare(
         'UPDATE chat_sessions SET updated_at = ? WHERE id = ?'
       );
@@ -300,25 +300,25 @@ export class ChatService {
   }
 
   async deleteGroup(groupId: string): Promise<void> {
-    // Get chat_session_id for this group
+    // Obter chat_session_id para este grupo
     const getChatStmt = db.prepare('SELECT id FROM chat_sessions WHERE group_id = ?');
     const chatSession = getChatStmt.get(groupId) as any;
 
     if (!chatSession) throw new Error('Group not found');
 
-    // Delete messages first (due to foreign key constraints)
+    // Excluir mensagens primeiro (devido às restrições de chave estrangeira)
     const deleteMessagesStmt = db.prepare('DELETE FROM messages WHERE chat_session_id = ?');
     deleteMessagesStmt.run(chatSession.id);
 
-    // Delete participants
+    // Excluir participantes
     const deleteParticipantsStmt = db.prepare('DELETE FROM chat_participants WHERE chat_session_id = ?');
     deleteParticipantsStmt.run(chatSession.id);
 
-    // Delete chat session
+    // Excluir sessão de chat
     const deleteChatStmt = db.prepare('DELETE FROM chat_sessions WHERE id = ?');
     deleteChatStmt.run(chatSession.id);
 
-    // Delete group
+    // Excluir grupo
     const deleteGroupStmt = db.prepare('DELETE FROM groups WHERE id = ?');
     deleteGroupStmt.run(groupId);
   }
@@ -345,7 +345,7 @@ export class MessageService {
       );
       stmt.run(id, chatId, senderId, content, timestamp);
 
-      // Update chat session's updated_at
+      // Atualizar updated_at da sessão de chat
       const updateStmt = db.prepare(
         'UPDATE chat_sessions SET updated_at = ? WHERE id = ?'
       );
@@ -356,7 +356,7 @@ export class MessageService {
   }
 
   async getMessages(chatId: string, userId?: string, limit: number = 50): Promise<Message[]> {
-    // If userId is provided, mark unread messages from other users as read
+    // Se userId for fornecido, marcar mensagens não lidas de outros usuários como lidas
     if (userId) {
       const markAsReadStmt = db.prepare(`
         UPDATE messages 
@@ -393,9 +393,9 @@ export class MessageService {
     const now = new Date().toISOString();
     
     if (messageIds && messageIds.length > 0) {
-      // Mark specific messages as read
+      // Marcar mensagens específicas como lidas
       for (const messageId of messageIds) {
-        // Get current read_by value
+        // Obter valor atual de read_by
         const getStmt = db.prepare('SELECT read_by FROM messages WHERE id = ?');
         const current = getStmt.get(messageId) as any;
         
@@ -409,7 +409,7 @@ export class MessageService {
           }
         }
         
-        // Add user if not already in the array
+        // Adicionar usuário se ainda não estiver no array
         if (!readByArray.includes(userId)) {
           readByArray.push(userId);
         }
@@ -424,7 +424,7 @@ export class MessageService {
         stmt.run(now, JSON.stringify(readByArray), messageId, userId, `%${userId}%`);
       }
     } else {
-      // Mark all unread messages in the chat as read
+      // Marcar todas as mensagens não lidas no chat como lidas
       const getUnreadStmt = db.prepare(`
         SELECT id, read_by FROM messages 
         WHERE chat_session_id = ? 

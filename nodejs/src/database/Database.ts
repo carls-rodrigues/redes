@@ -74,22 +74,22 @@ class DatabaseManager {
       CREATE INDEX IF NOT EXISTS idx_chat_participants_chat ON chat_participants(chat_session_id);
     `);
 
-    // Add updated_at column to existing chat_sessions table if it doesn't exist
+    // Adicionar coluna updated_at à tabela chat_sessions existente se não existir
     try {
-      // First check if column exists
+      // Primeiro verificar se a coluna existe
       const tableInfo = this.db.prepare("PRAGMA table_info(chat_sessions)").all() as any[];
       const hasUpdatedAt = tableInfo.some(col => col.name === 'updated_at');
       
       if (!hasUpdatedAt) {
         this.db.exec(`ALTER TABLE chat_sessions ADD COLUMN updated_at TEXT`);
-        // Set updated_at to created_at for existing rows
+        // Definir updated_at como created_at para linhas existentes
         this.db.exec(`UPDATE chat_sessions SET updated_at = created_at WHERE updated_at IS NULL`);
       }
     } catch (error) {
-      // Column might already exist, ignore error
+      // Coluna pode já existir, ignorar erro
     }
 
-    // Add read_at and read_by columns to existing messages table if they don't exist
+    // Adicionar colunas read_at e read_by à tabela messages existente se não existirem
     try {
       const tableInfo = this.db.prepare("PRAGMA table_info(messages)").all() as any[];
       const hasReadAt = tableInfo.some(col => col.name === 'read_at');
@@ -102,7 +102,7 @@ class DatabaseManager {
         this.db.exec(`ALTER TABLE messages ADD COLUMN read_by TEXT`);
       }
     } catch (error) {
-      // Columns might already exist, ignore error
+      // Colunas podem já existir, ignorar erro
     }
 
     console.log('✓ Database initialized');

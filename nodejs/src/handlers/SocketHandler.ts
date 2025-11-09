@@ -319,7 +319,7 @@ export class SocketHandler {
     const msg = await messageService.sendMessage(chat_id, client.session.user_id, content);
     console.log(`[${new Date().toISOString()}] ✅ Message saved with ID: ${msg.id}`);
 
-    // Send confirmation to sender
+    // Enviar confirmação para o remetente
     console.log(`[${new Date().toISOString()}] 📤 Sending confirmation to sender ${clientId}`);
     const response: any = {
       status: 'ok',
@@ -331,7 +331,7 @@ export class SocketHandler {
     }
     this.sendMessage(clientId, response);
 
-    // Broadcast message to ALL participants (including sender)
+    // Transmitir mensagem para TODOS os participantes (incluindo o remetente)
     console.log(`[${new Date().toISOString()}] 📢 Broadcasting message ${msg.id} to chat ${chat_id} participants`);
     const participants = await chatService.getChatParticipants(chat_id);
     console.log(`[${new Date().toISOString()}] 👥 Found ${participants.length} participants in chat ${chat_id}`);
@@ -368,7 +368,7 @@ export class SocketHandler {
 
     const { query } = message;
     if (query === undefined || (typeof query === 'string' && query === '')) {
-      // Allow empty query to search all users
+      // Permitir consulta vazia para buscar todos os usuários
       const users = await userService.searchUsers('%', client.session.user_id);
       const response: any = {
         status: 'ok',
@@ -497,7 +497,7 @@ export class SocketHandler {
     }
     this.sendMessage(clientId, response);
 
-    // Notify the new member
+    // Notificar o novo membro
     const memberClientId = this.userSessions.get(user_id);
     if (memberClientId) {
       this.sendMessage(memberClientId, {
@@ -518,7 +518,7 @@ export class SocketHandler {
       return this.sendError(clientId, 'group_id and user_id required', message.request_id);
     }
 
-    // Check if user is the group creator
+    // Verificar se o usuário é o criador do grupo
     const getGroupStmt = db.prepare('SELECT creator_id FROM groups WHERE id = ?');
     const group = getGroupStmt.get(group_id) as any;
     
@@ -540,7 +540,7 @@ export class SocketHandler {
     }
     this.sendMessage(clientId, response);
 
-    // Notify the removed member
+    // Notificar o membro removido
     for (const [cId, c] of this.clients) {
       if (c.session?.user_id === user_id) {
         this.sendMessage(cId, {
@@ -563,7 +563,7 @@ export class SocketHandler {
       return this.sendError(clientId, 'group_id and new_name required', message.request_id);
     }
 
-    // Check if user is the group creator
+    // Verificar se o usuário é o criador do grupo
     const getGroupStmt = db.prepare('SELECT creator_id FROM groups WHERE id = ?');
     const group = getGroupStmt.get(group_id) as any;
     
@@ -585,7 +585,7 @@ export class SocketHandler {
     }
     this.sendMessage(clientId, response);
 
-    // Notify all group members about the name change
+    // Notificar todos os membros do grupo sobre a mudança de nome
     const getChatStmt = db.prepare('SELECT id FROM chat_sessions WHERE group_id = ?');
     const chatSession = getChatStmt.get(group_id) as any;
     if (chatSession) {
@@ -653,13 +653,13 @@ export class SocketHandler {
       return this.sendError(clientId, 'Group not found', message.request_id);
     }
 
-    // Only group owner can delete the group
+    // Apenas o proprietário do grupo pode excluir o grupo
     if (group.creator_id !== client.session.user_id) {
       return this.sendError(clientId, 'Only group owner can delete group', message.request_id);
     }
 
     try {
-      // Get participants BEFORE deleting
+      // Obter participantes ANTES de excluir
       const getChatStmt = db.prepare('SELECT id FROM chat_sessions WHERE group_id = ?');
       const chatSession = getChatStmt.get(group_id) as any;
       let participants: any[] = [];
@@ -669,23 +669,23 @@ export class SocketHandler {
         participants = getParticipantsStmt.all(chatSession.id) as any[];
       }
 
-      // Delete messages first (due to foreign key constraints)
+      // Excluir mensagens primeiro (devido às restrições de chave estrangeira)
       if (chatSession) {
         const deleteMessagesStmt = db.prepare('DELETE FROM messages WHERE chat_session_id = ?');
         deleteMessagesStmt.run(chatSession.id);
       }
 
-      // Delete chat participants
+      // Excluir participantes do chat
       const deleteParticipantsStmt = db.prepare('DELETE FROM chat_participants WHERE chat_session_id = ?');
       if (chatSession) {
         deleteParticipantsStmt.run(chatSession.id);
       }
 
-      // Delete chat session associated with this group
+      // Excluir sessão de chat associada a este grupo
       const deleteChatStmt = db.prepare('DELETE FROM chat_sessions WHERE group_id = ?');
       deleteChatStmt.run(group_id);
 
-      // Delete group
+      // Excluir grupo
       const deleteGroupStmt = db.prepare('DELETE FROM groups WHERE id = ?');
       deleteGroupStmt.run(group_id);
 
@@ -698,7 +698,7 @@ export class SocketHandler {
 
       this.sendMessage(clientId, response);
 
-      // Notify all group members that group has been deleted
+      // Notificar todos os membros do grupo que o grupo foi excluído
       const notification = {
         type: 'group:deleted',
         payload: {
@@ -729,14 +729,14 @@ export class SocketHandler {
     }
 
     try {
-      // Delete the session from database
+      // Excluir a sessão do banco de dados
       const deleted = await userService.deleteSession(client.session.session_id);
       
       if (deleted) {
-        // Clear session from client
+        // Limpar sessão do cliente
         client.session = undefined;
         
-        // Remove from user sessions map
+        // Remover do mapa de sessões de usuário
         if (client.userId) {
           this.userSessions.delete(client.userId);
         }
