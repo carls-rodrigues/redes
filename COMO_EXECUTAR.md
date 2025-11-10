@@ -2,6 +2,23 @@
 
 Para executar ambos os servidores (Backend + Frontend) simultaneamente, use um dos comandos abaixo:
 
+## 💻 Scripts Disponíveis
+
+### Linux/macOS
+
+- **`./run-servers.sh`** - Script completo (recomendado)
+- **`./start-chat.sh`** - Script simples e rápido
+
+### Windows
+
+- **`run-servers.bat`** - Script completo (recomendado)
+- **`start-chat.bat`** - Script simples e rápido
+
+### Docker (se disponível)
+
+- **`./deploy-college.sh`** (Linux/macOS)
+- **`deploy-college.bat`** (Windows)
+
 ## Opção 1: Script Completo (Recomendado)
 
 ```bash
@@ -59,19 +76,22 @@ Os servidores estão configurados para aceitar conexões de qualquer computador 
 - Frontend: `http://[IP-DA-MÁQUINA]:3000`
 - Backend: `http://[IP-DA-MÁQUINA]:5000`
 
-## Requisitos
+## 🔧 Requisitos
 
 ### 🔧 Node.js e npm
+
 - **Node.js** versão 18 ou superior instalado
 - **npm** (geralmente vem com Node.js)
 
 **Para verificar se estão instalados:**
+
 ```bash
 node --version
 npm --version
 ```
 
 **Para instalar (Ubuntu/Debian):**
+
 ```bash
 # Instalar Node.js 20.x
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
@@ -79,9 +99,11 @@ sudo apt-get install -y nodejs
 ```
 
 **Para instalar (Windows/macOS):**
-- Baixe do site oficial: https://nodejs.org/
+
+- Baixe do site oficial: `https://nodejs.org/`
 
 ### 🌐 Sistema
+
 - Portas 3000 e 5000 livres (não em uso por outros programas)
 - Conexão de rede para acesso remoto (se necessário)
 
@@ -109,6 +131,17 @@ sudo apt-get install -y nodejs
 - Verifique conexão com internet
 - Execute: `npm cache clean --force`
 - Tente novamente: `npm install`
+
+### Windows - "node is not recognized"
+
+- Node.js não está no PATH do Windows
+- Reinstale Node.js e marque a opção "Add to PATH"
+- Ou execute: `C:\Program Files\nodejs\node.exe --version`
+
+### Windows - Scripts .bat não funcionam
+
+- Execute o CMD como Administrador
+- Ou use PowerShell: `.\run-servers.bat`
 
 ## Logs
 
