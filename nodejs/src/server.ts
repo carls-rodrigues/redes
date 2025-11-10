@@ -27,11 +27,11 @@ const server = net.createServer((socket) => {
     
     // Verificar se é uma requisição HTTP (atualização WebSocket)
     if (dataStr.startsWith('GET ')) {
-      console.log(`[${new Date().toISOString()}] 🔌 WebSocket upgrade initiated by client ${clientId}`);
+      console.log(`[${new Date().toISOString()}] 🔌 Atualização WebSocket iniciada pelo cliente ${clientId}`);
       handleWebSocketUpgrade(socket, buffer, clientId);
     } else {
       // É uma conexão TCP bruta
-      console.log(`[${new Date().toISOString()}] 🔌 TCP client connected: ${clientId}`);
+      console.log(`[${new Date().toISOString()}] 🔌 Cliente TCP conectado: ${clientId}`);
       handleRawTcpConnection(socket, buffer, clientId);
     }
   };
@@ -103,7 +103,7 @@ function handleWebSocketUpgrade(socket: any, initialData: Buffer, clientId: stri
   
   // Registrar como cliente WebSocket
   handler.registerWebSocketClient(clientId, socket);
-  console.log(`[${new Date().toISOString()}] ✅ WebSocket handshake completed for client ${clientId}`);
+  console.log(`[${new Date().toISOString()}] ✅ Handshake WebSocket concluído para o cliente ${clientId}`);
   
   // Manipular quadros WebSocket
   let frameBuffer = Buffer.alloc(0);
@@ -164,9 +164,9 @@ function handleWebSocketUpgrade(socket: any, initialData: Buffer, clientId: stri
         // Quadro de texto
         try {
           const message: SocketMessage = JSON.parse(payload.toString('utf-8'));
-          console.log(`[${new Date().toISOString()}] 📨 Message received from ${clientId}: ${message.type}`);
+          console.log(`[${new Date().toISOString()}] 📨 Mensagem recebida de ${clientId}: ${message.type}`);
           await handler.handleMessage(clientId, message);
-          console.log(`[${new Date().toISOString()}] ✅ Message processed: ${message.type} (ID: ${message.request_id || 'N/A'})`);
+          console.log(`[${new Date().toISOString()}] ✅ Mensagem processada: ${message.type} (ID: ${message.request_id || 'N/A'})`);
         } catch (err) {
           console.error(`[${new Date().toISOString()}] ❌ Error parsing message from ${clientId}:`, err);
           sendWebSocketMessage(socket, { type: 'error', message: 'Invalid JSON' });
@@ -178,15 +178,15 @@ function handleWebSocketUpgrade(socket: any, initialData: Buffer, clientId: stri
         break;
       } else if (opcode === 0x9) {
         // Quadro ping - responder com pong
-        console.log(`[${new Date().toISOString()}] 💓 Ping received from ${clientId}`);
+        console.log(`[${new Date().toISOString()}] 💓 Ping recebido de ${clientId}`);
         const pongFrame = Buffer.from([0x8a, 0x00]);
         if (socket.writable && !socket.destroyed) {
           socket.write(pongFrame);
-          console.log(`[${new Date().toISOString()}] 💓 Pong sent to ${clientId}`);
+          console.log(`[${new Date().toISOString()}] 💓 Pong enviado para ${clientId}`);
         }
       } else if (opcode === 0xa) {
         // Quadro pong - ignorar
-        console.log(`[${new Date().toISOString()}] 💓 Pong received from ${clientId}`);
+        console.log(`[${new Date().toISOString()}] 💓 Pong recebido de ${clientId}`);
       }
       
       frameBuffer = frameBuffer.slice(frameEnd);
@@ -195,7 +195,7 @@ function handleWebSocketUpgrade(socket: any, initialData: Buffer, clientId: stri
   
   socket.on('end', () => {
     handler.unregisterClient(clientId);
-    console.log(`[${new Date().toISOString()}] 🔌 WebSocket client disconnected: ${clientId}`);
+    console.log(`[${new Date().toISOString()}] 🔌 Cliente WebSocket desconectado: ${clientId}`);
   });
   
   socket.on('error', (err: any) => {
@@ -234,7 +234,7 @@ function handleRawTcpConnection(socket: any, initialData: Buffer, clientId: stri
   
   socket.on('end', () => {
     handler.unregisterClient(clientId);
-    console.log(`[${new Date().toISOString()}] 🔌 TCP client disconnected: ${clientId}`);
+    console.log(`[${new Date().toISOString()}] 🔌 Cliente TCP desconectado: ${clientId}`);
   });
   
   socket.on('error', (error: any) => {
@@ -301,25 +301,25 @@ function sendWebSocketMessage(socket: any, data: any) {
 handler.setSendWebSocketMessage(sendWebSocketMessage);
 
 server.listen(PORT, HOST, () => {
-  console.log(`🚀 Chat server started on ${HOST}:${PORT}`);
-  console.log(`   📡 WebSocket endpoint: ws://${HOST}:${PORT}/ws`);
-  console.log(`   🔌 Raw TCP endpoint: ${HOST}:${PORT}`);
-  console.log(`   📊 Ready to handle real-time chat connections`);
+  console.log(`🚀 Servidor de chat iniciado em ${HOST}:${PORT}`);
+  console.log(`   📡 Endpoint WebSocket: ws://${HOST}:${PORT}/ws`);
+  console.log(`   🔌 Endpoint TCP bruto: ${HOST}:${PORT}`);
+  console.log(`   📊 Pronto para lidar com conexões de chat em tempo real`);
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
+  console.log('SIGTERM recebido, encerrando graciosamente');
   server.close(() => {
-    console.log('Server closed');
+    console.log('Servidor fechado');
     process.exit(0);
   });
 });
 
 process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
+  console.log('SIGINT recebido, encerrando graciosamente');
   server.close(() => {
-    console.log('Server closed');
+    console.log('Servidor fechado');
     process.exit(0);
   });
 });
