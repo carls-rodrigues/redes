@@ -7,7 +7,7 @@ import NavigationSidebar from "@/components/navigation-sidebar"
 import ConversationList from "@/components/conversation-list"
 import ChatArea from "@/components/chat-area"
 
-// Disable prerendering for this page since it requires authentication
+// Desabilitar pré-renderização para esta página pois requer autenticação
 export const dynamic = 'force-dynamic'
 
 export default function Home() {
@@ -16,12 +16,12 @@ export default function Home() {
   const router = useRouter()
 
   useEffect(() => {
-    // Check if user is authenticated
+    // Verificar se usuário está autenticado
     const userData = localStorage.getItem('user');
     const sessionData = localStorage.getItem('session');
 
     if (!userData || !sessionData) {
-      // Not authenticated, redirect to login
+      // Não autenticado, redirecionar para login
       router.push('/login');
       return;
     }

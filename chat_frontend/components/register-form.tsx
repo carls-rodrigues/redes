@@ -35,20 +35,20 @@ export function RegisterForm({ ...props }: React.ComponentProps<typeof Card>) {
   useEffect(() => {
     if (lastMessage) {
       console.log('Register form received message:', lastMessage);
-      // Check for register response - either by type or by checking status
+      // Verificar resposta de registro - seja por tipo ou verificando status
       if ((lastMessage.type === 'register' || lastMessage.status) && lastMessage.status === 'ok') {
         console.log('Registration successful');
-        // Registration successful
+        // Registro bem-sucedido
         setSuccess(t('accountCreated'));
         setError("");
         setIsLoading(false);
-        // Redirect to login after a short delay
+        // Redirecionar para login após um pequeno atraso
         setTimeout(() => {
           router.push('./login');
         }, 2000);
       } else if ((lastMessage.type === 'register' || lastMessage.status) && lastMessage.status === 'error') {
         console.log('Registration failed:', lastMessage.message);
-        // Registration failed
+        // Registro falhou
         setError(lastMessage.message || 'Registration failed');
         setSuccess("");
         setIsLoading(false);

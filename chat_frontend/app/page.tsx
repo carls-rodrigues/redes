@@ -8,19 +8,19 @@ import ConversationList, { Conversation } from "@/components/conversation-list"
 import ChatArea from "@/components/chat-area"
 import { useTranslations } from 'next-intl';
 
-// Disable prerendering for this page since it requires authentication
+// Desabilitar pré-renderização para esta página pois requer autenticação
 export const dynamic = 'force-dynamic'
 
 export default function Home() {
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [showConversationList, setShowConversationList] = useState(true) // Show conversation list by default on mobile
+  const [showConversationList, setShowConversationList] = useState(true) // Mostrar lista de conversas por padrão no mobile
   const router = useRouter()
   const t = useTranslations('common');
 
   const handleSelectConversation = (conversation: Conversation | null) => {
     setSelectedConversation(conversation ? conversation.id : null)
-    // On mobile, hide conversation list when a conversation is selected
+    // No mobile, esconder lista de conversas quando uma conversa é selecionada
     setShowConversationList(false)
   }
 

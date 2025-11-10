@@ -10,10 +10,10 @@ export default function SessionManager() {
   const router = useRouter()
   const { locale } = useLocale()
 
-  // Handle session expiration and redirect
+  // Lidar com expiração de sessão e redirecionar
   useEffect(() => {
     if (lastMessage) {
-      // Check for session expiration indicators
+      // Verificar indicadores de expiração de sessão
       if (
         lastMessage.type === 'auth_failed' ||
         lastMessage.type === 'session_expired' ||
@@ -23,19 +23,19 @@ export default function SessionManager() {
         (lastMessage.status === 'error' && lastMessage.message?.includes('token'))
       ) {
         console.log('Session expiration detected, redirecting to login');
-        // Clear session data
+        // Limpar dados da sessão
         localStorage.removeItem('user');
         localStorage.removeItem('session');
-        // Redirect to login
+        // Redirecionar para login
         router.push('/login');
       }
     }
   }, [lastMessage, router]);
 
-  // Handle WebSocket disconnection due to auth issues
+  // Lidar com desconexão WebSocket devido a problemas de auth
   useEffect(() => {
     const handleWebSocketClose = (event: CustomEvent) => {
-      // If WebSocket closes with auth-related codes, redirect to login
+      // Se WebSocket fechar com códigos relacionados a auth, redirecionar para login
       if (event.detail?.code === 4001 || event.detail?.code === 4003) {
         console.log('WebSocket closed due to authentication, redirecting to login');
         localStorage.removeItem('user');

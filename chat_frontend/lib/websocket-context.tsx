@@ -77,20 +77,20 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
   const handleSessionExpired = useCallback(() => {
     console.log('Session expired, clearing data and redirecting to login');
-    // Clear session data
+    // Limpar dados da sessão
     localStorage.removeItem('user');
     localStorage.removeItem('session');
-    // Disconnect WebSocket
+    // Desconectar WebSocket
     if (wsRef.current) {
       wsRef.current.close(1000, 'Session expired');
     }
-    // Redirect to login (will be handled by components using this)
+    // Redirecionar para login (será tratado pelos componentes que usam isso)
   }, []);
 
-  // Handle session expiration from WebSocket messages
+  // Lidar com expiração de sessão das mensagens WebSocket
   useEffect(() => {
     if (lastMessage) {
-      // Check for session expiration indicators
+      // Verificar indicadores de expiração de sessão
       if (
         lastMessage.type === 'auth_failed' ||
         lastMessage.type === 'session_expired' ||
@@ -110,12 +110,12 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
     clearReconnectTimeout();
 
-    // Use environment variable if available, otherwise construct URL
+    // Usar variável de ambiente se disponível, caso contrário construir URL
     let wsUrl: string;
     if (process.env.NEXT_PUBLIC_WS_URL) {
       wsUrl = process.env.NEXT_PUBLIC_WS_URL;
     } else {
-      // Fallback to constructing URL from current location (for development)
+      // Fallback para construir URL a partir da localização atual (para desenvolvimento)
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const hostname = config.current.hostname || window.location.hostname;
       wsUrl = `${protocol}//${hostname}:${config.current.port}${config.current.endpoint}`;
@@ -136,7 +136,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       setIsConnected(true);
       setError(null);
 
-      // Authenticate if we have a session
+      // Autenticar se temos uma sessão
       try {
         const session = JSON.parse(localStorage.getItem('session') || '{}');
         if (session.session_id) {
@@ -158,10 +158,10 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         const message: WebSocketResponse = JSON.parse(event.data);
         console.log('WebSocket message received:', message);
 
-        // Always set lastMessage for any incoming message
+        // Sempre definir lastMessage para qualquer mensagem recebida
         setLastMessage(message);
 
-        // Handle responses to requests if request_id is present
+        // Lidar com respostas para solicitações se request_id estiver presente
         if (message.request_id && pendingRequestsRef.current.has(message.request_id)) {
           const request = pendingRequestsRef.current.get(message.request_id);
           if (request) {
@@ -186,12 +186,12 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       });
       setIsConnected(false);
 
-      // Dispatch custom event for session management
+      // Disparar evento personalizado para gerenciamento de sessão
       window.dispatchEvent(new CustomEvent('websocket-close', {
         detail: { code: event.code, reason: event.reason, wasClean: event.wasClean }
       }));
 
-      // Try to reconnect if autoReconnect is enabled
+      // Tentar reconectar se autoReconnect estiver habilitado
       if (config.current.autoReconnect) {
         const delay = Math.min(5000 + Math.random() * 5000, config.current.maxReconnectDelay);
         console.log(`Reconnecting in ${delay}ms...`);
@@ -218,11 +218,18 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
       console.log('Sending WebSocket message:', messageWithId);
 
-      // Set timeout for this request
+      // Definir timeout para esta solicitação
       const timeoutId = setTimeout(() => {
         if (pendingRequestsRef.current.has(requestId)) {
           pendingRequestsRef.current.delete(requestId);
           console.warn(`Request ${requestId} timed out`);
+          // Definir mensagem de erro para timeout
+          setLastMessage({
+            type: message.type,
+            request_id: requestId,
+            status: 'error',
+            message: 'Request timed out'
+          });
         }
       }, config.current.requestTimeout);
 

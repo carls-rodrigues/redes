@@ -3,7 +3,7 @@
 import { NextIntlClientProvider } from 'next-intl';
 import { useLocale } from '@/lib/locale-context';
 
-// Import messages as TypeScript modules
+// Importar mensagens como módulos TypeScript
 import en from '../messages/en';
 import ptBR from '../messages/pt-BR';
 

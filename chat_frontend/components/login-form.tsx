@@ -42,17 +42,17 @@ export function LoginForm({
   useEffect(() => {
     if (lastMessage) {
       console.log('Login form received message:', lastMessage);
-      // Check for login response - either by type or by checking if it has user/session data
+      // Verificar resposta de login - seja por tipo ou verificando se tem dados de usuário/sessão
       if ((lastMessage.type === 'login' || (lastMessage.user && lastMessage.session)) && lastMessage.status === 'ok') {
         console.log('Login successful, redirecting to /');
-        // Login successful
+        // Login bem-sucedido
         localStorage.setItem('user', JSON.stringify(lastMessage.user));
         localStorage.setItem('session', JSON.stringify(lastMessage.session));
         setIsLoading(false);
         router.push('/');
       } else if ((lastMessage.type === 'login' || (lastMessage.user && lastMessage.session)) && lastMessage.status === 'error') {
         console.log('Login failed:', lastMessage.message);
-        // Login failed
+        // Login falhou
         setError(lastMessage.message || 'Login failed');
         setIsLoading(false);
       }

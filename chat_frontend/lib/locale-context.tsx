@@ -14,9 +14,9 @@ const LocaleContext = createContext<LocaleContextType | undefined>(undefined)
 const LOCALE_STORAGE_KEY = 'locale'
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>('pt-BR') // Default fallback
+  const [locale, setLocaleState] = useState<Locale>('pt-BR') // Fallback padrão
 
-  // Load locale from localStorage on mount
+  // Carregar locale do localStorage na montagem
   useEffect(() => {
     const stored = localStorage.getItem(LOCALE_STORAGE_KEY) as Locale
     if (stored && (stored === 'en' || stored === 'pt-BR')) {

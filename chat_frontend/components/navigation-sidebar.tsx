@@ -22,7 +22,7 @@ export default function NavigationSidebar() {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const t = useTranslations('nav');
 
-  // Get user data for avatar
+  // Obter dados do usuário para avatar
   const getUserInitial = () => {
     try {
       const userData = localStorage.getItem('user')
@@ -38,7 +38,7 @@ export default function NavigationSidebar() {
     return 'U' // Fallback
   }
 
-  // Handle logout
+  // Lidar com logout
   const handleLogout = () => {
     sendMessage({
       type: 'logout'
@@ -46,11 +46,11 @@ export default function NavigationSidebar() {
     setDropdownOpen(false)
   }
 
-  // Listen for logout response
+  // Ouvir resposta de logout
   React.useEffect(() => {
     if (lastMessage && lastMessage.type === 'logout') {
       if (lastMessage.status === 'ok') {
-        // Clear local storage and redirect to login
+        // Limpar local storage e redirecionar para login
         localStorage.removeItem('user')
         localStorage.removeItem('session')
         router.push('/login')
