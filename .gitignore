@@ -7,3 +7,6 @@ electron/
 .env.local
 .env.production.local
 .idea/
+nodejs/redes_chat.db
+nodejs/redes_chat.db-shm
+nodejs/redes_chat.db-wal
