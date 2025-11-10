@@ -35,23 +35,23 @@ export function LoginForm({
   const router = useRouter()
 
   const reconnectWebSocket = () => {
-    console.log('Manually reconnecting WebSocket...');
+    console.log('Reconectando WebSocket manualmente...');
     reconnect();
   };
 
   useEffect(() => {
     if (lastMessage) {
-      console.log('Login form received message:', lastMessage);
+      console.log('Formulário de login recebeu mensagem:', lastMessage);
       // Verificar resposta de login - seja por tipo ou verificando se tem dados de usuário/sessão
       if ((lastMessage.type === 'login' || (lastMessage.user && lastMessage.session)) && lastMessage.status === 'ok') {
-        console.log('Login successful, redirecting to /');
+        console.log('Login bem-sucedido, redirecionando para /');
         // Login bem-sucedido
         localStorage.setItem('user', JSON.stringify(lastMessage.user));
         localStorage.setItem('session', JSON.stringify(lastMessage.session));
         setIsLoading(false);
         router.push('/');
       } else if ((lastMessage.type === 'login' || (lastMessage.user && lastMessage.session)) && lastMessage.status === 'error') {
-        console.log('Login failed:', lastMessage.message);
+        console.log('Login falhou:', lastMessage.message);
         // Login falhou
         setError(lastMessage.message || 'Login failed');
         setIsLoading(false);
@@ -75,13 +75,13 @@ export function LoginForm({
 
     setIsLoading(true);
 
-    console.log('Sending login request:', { username, password });
+    console.log('Enviando solicitação de login:', { username, password });
     const requestId = sendMessage({
       type: 'login',
       username: username,
       password: password
     });
-    console.log('Login request sent with ID:', requestId);
+    console.log('Solicitação de login enviada com ID:', requestId);
   };
 
   return (

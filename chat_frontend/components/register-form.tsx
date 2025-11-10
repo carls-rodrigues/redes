@@ -34,10 +34,10 @@ export function RegisterForm({ ...props }: React.ComponentProps<typeof Card>) {
 
   useEffect(() => {
     if (lastMessage) {
-      console.log('Register form received message:', lastMessage);
+      console.log('Formulário de registro recebeu mensagem:', lastMessage);
       // Verificar resposta de registro - seja por tipo ou verificando status
       if ((lastMessage.type === 'register' || lastMessage.status) && lastMessage.status === 'ok') {
-        console.log('Registration successful');
+        console.log('Registro bem-sucedido');
         // Registro bem-sucedido
         setSuccess(t('accountCreated'));
         setError("");
@@ -47,7 +47,7 @@ export function RegisterForm({ ...props }: React.ComponentProps<typeof Card>) {
           router.push('./login');
         }, 2000);
       } else if ((lastMessage.type === 'register' || lastMessage.status) && lastMessage.status === 'error') {
-        console.log('Registration failed:', lastMessage.message);
+        console.log('Registro falhou:', lastMessage.message);
         // Registro falhou
         setError(lastMessage.message || 'Registration failed');
         setSuccess("");

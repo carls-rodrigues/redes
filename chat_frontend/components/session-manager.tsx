@@ -22,7 +22,7 @@ export default function SessionManager() {
         (lastMessage.status === 'error' && lastMessage.message?.includes('auth')) ||
         (lastMessage.status === 'error' && lastMessage.message?.includes('token'))
       ) {
-        console.log('Session expiration detected, redirecting to login');
+        console.log('Expiração de sessão detectada, redirecionando para login');
         // Limpar dados da sessão
         localStorage.removeItem('user');
         localStorage.removeItem('session');
@@ -37,7 +37,7 @@ export default function SessionManager() {
     const handleWebSocketClose = (event: CustomEvent) => {
       // Se WebSocket fechar com códigos relacionados a auth, redirecionar para login
       if (event.detail?.code === 4001 || event.detail?.code === 4003) {
-        console.log('WebSocket closed due to authentication, redirecting to login');
+        console.log('WebSocket fechado devido à autenticação, redirecionando para login');
         localStorage.removeItem('user');
         localStorage.removeItem('session');
         router.push('/login');

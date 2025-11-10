@@ -76,7 +76,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const handleSessionExpired = useCallback(() => {
-    console.log('Session expired, clearing data and redirecting to login');
+    console.log('Sessão expirada, limpando dados e redirecionando para login');
     // Limpar dados da sessão
     localStorage.removeItem('user');
     localStorage.removeItem('session');
@@ -99,7 +99,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         (lastMessage.status === 'error' && lastMessage.message?.includes('auth')) ||
         (lastMessage.status === 'error' && lastMessage.message?.includes('token'))
       ) {
-        console.log('Session expiration detected:', lastMessage);
+        console.log('Expiração de sessão detectada:', lastMessage);
         handleSessionExpired();
       }
     }
@@ -121,7 +121,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       wsUrl = `${protocol}//${hostname}:${config.current.port}${config.current.endpoint}`;
     }
 
-    console.log('Attempting to connect to WebSocket:', wsUrl);
+    console.log('Tentando conectar ao WebSocket:', wsUrl);
 
     try {
       wsRef.current = new WebSocket(wsUrl);
@@ -132,7 +132,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     }
 
     wsRef.current.onopen = () => {
-      console.log('✅ WebSocket connected successfully to:', wsUrl);
+      console.log('✅ WebSocket conectado com sucesso em:', wsUrl);
       setIsConnected(true);
       setError(null);
 
@@ -145,7 +145,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
             token: session.session_id,
             request_id: ++requestIdRef.current
           };
-          console.log('Sending auth message:', authMessage);
+          console.log('Enviando mensagem de auth:', authMessage);
           wsRef.current?.send(JSON.stringify(authMessage));
         }
       } catch (error) {
@@ -156,7 +156,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     wsRef.current.onmessage = (event) => {
       try {
         const message: WebSocketResponse = JSON.parse(event.data);
-        console.log('WebSocket message received:', message);
+        console.log('Mensagem WebSocket recebida:', message);
 
         // Sempre definir lastMessage para qualquer mensagem recebida
         setLastMessage(message);
@@ -167,10 +167,10 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
           if (request) {
             clearTimeout(request.timeoutId);
             pendingRequestsRef.current.delete(message.request_id);
-            console.log('Matched response to request:', message.request_id);
+            console.log('Resposta correspondida à solicitação:', message.request_id);
           }
         } else if (message.request_id) {
-          console.log('Received response with request_id but no matching pending request:', message.request_id);
+          console.log('Recebida resposta com request_id mas sem solicitação pendente correspondente:', message.request_id);
         }
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
@@ -179,7 +179,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     };
 
     wsRef.current.onclose = (event) => {
-      console.log('❌ WebSocket disconnected:', {
+      console.log('❌ WebSocket desconectado:', {
         code: event.code,
         reason: event.reason,
         wasClean: event.wasClean
@@ -194,7 +194,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       // Tentar reconectar se autoReconnect estiver habilitado
       if (config.current.autoReconnect) {
         const delay = Math.min(5000 + Math.random() * 5000, config.current.maxReconnectDelay);
-        console.log(`Reconnecting in ${delay}ms...`);
+        console.log(`Reconectando em ${delay}ms...`);
         reconnectTimeoutRef.current = setTimeout(() => connect(), delay);
       }
     };
@@ -206,8 +206,8 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   }, [clearReconnectTimeout]);
 
   const sendMessage = useCallback((message: WebSocketMessage): number | null => {
-    console.log('sendMessage called with:', message);
-    console.log('WebSocket readyState:', wsRef.current?.readyState);
+    console.log('sendMessage chamado com:', message);
+    console.log('Estado readyState do WebSocket:', wsRef.current?.readyState);
 
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       const requestId = ++requestIdRef.current;
@@ -216,7 +216,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         request_id: requestId
       };
 
-      console.log('Sending WebSocket message:', messageWithId);
+      console.log('Enviando mensagem WebSocket:', messageWithId);
 
       // Definir timeout para esta solicitação
       const timeoutId = setTimeout(() => {
@@ -254,7 +254,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const reconnect = useCallback(() => {
-    console.log('Manual reconnect requested');
+    console.log('Reconexão manual solicitada');
     if (wsRef.current) {
       wsRef.current.close();
     }

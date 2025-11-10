@@ -8,7 +8,7 @@ export default function WebSocketTestPage() {
   const { sendMessage, lastMessage, isConnected, error } = useWebSocket();
 
   const testConnection = () => {
-    console.log('Testing WebSocket connection...');
+    console.log('Testando conexão WebSocket...');
     sendMessage({
       type: 'ping',
       message: 'test connection'
@@ -16,7 +16,7 @@ export default function WebSocketTestPage() {
   };
 
   const testLogin = () => {
-    console.log('Testing login...');
+    console.log('Testando login...');
     sendMessage({
       type: 'login',
       username: 'testuser',
