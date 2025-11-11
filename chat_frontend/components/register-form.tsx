@@ -29,32 +29,34 @@ export function RegisterForm({ ...props }: React.ComponentProps<typeof Card>) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  const [currentRequestId, setCurrentRequestId] = useState<number | null>(null)
   const { sendMessage, lastMessage, isConnected } = useWebSocket()
   const router = useRouter()
 
   useEffect(() => {
-    if (lastMessage) {
-      console.log('Formulário de registro recebeu mensagem:', lastMessage);
-            // Verificar resposta de registro - seja por tipo ou verificando status
-      if ((lastMessage.type === 'register' || lastMessage.status) && lastMessage.status === 'ok') {
+    if (lastMessage && currentRequestId && lastMessage.request_id === currentRequestId) {
+      console.log('Formulário de registro recebeu resposta para solicitação atual:', lastMessage);
+      if (lastMessage.status === 'ok') {
         console.log('Registro bem-sucedido');
         // Registro bem-sucedido
         setSuccess(t('accountCreated'));
         setError("");
         setIsLoading(false);
+        setCurrentRequestId(null);
         // Redirecionar para login após um pequeno atraso
         setTimeout(() => {
           router.push('./login');
         }, 2000);
-      } else if (lastMessage.status === 'error' && lastMessage.request_id) {
+      } else if (lastMessage.status === 'error') {
         console.log('Registro falhou:', lastMessage.message);
         // Registro falhou
         setError(lastMessage.message || 'Registro falhou');
         setSuccess("");
         setIsLoading(false);
+        setCurrentRequestId(null);
       }
     }
-  }, [lastMessage, router]);
+  }, [lastMessage, currentRequestId, router, t]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,17 +75,27 @@ export function RegisterForm({ ...props }: React.ComponentProps<typeof Card>) {
 
     if (!isConnected) {
       setError('Não conectado ao servidor');
-      setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
 
-    sendMessage({
+    const requestId = sendMessage({
       type: 'register',
       username: username,
       password: password
     });
+    setCurrentRequestId(requestId);
+
+    // Timeout adicional de segurança (35 segundos)
+    setTimeout(() => {
+      if (isLoading) {
+        console.log('Timeout de segurança atingido para registro');
+        setIsLoading(false);
+        setCurrentRequestId(null);
+        setError('Tempo limite excedido. Tente novamente.');
+      }
+    }, 35000);
   };
 
   return (
