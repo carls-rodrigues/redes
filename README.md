@@ -6,8 +6,8 @@ Esta pasta contém toda a documentação técnica e de usuário do sistema de ch
 
 ### 🎯 **Guias de Uso**
 
-- [**COMO_EXECUTAR.md**](COMO_EXECUTAR.md) - Guia completo para executar o projeto
-- [**GUIA_SOCKET_BACKEND.md**](GUIA_SOCKET_BACKEND.md) - Documentação técnica do backend WebSocket
+- [**COMO_EXECUTAR.md**](docs/COMO_EXECUTAR.md) - Guia completo para executar o projeto
+- [**GUIA_SOCKET_BACKEND.md**](docs/GUIA_SOCKET_BACKEND.md) - Documentação técnica do backend WebSocket
 
 ### 🔄 **Fluxogramas - Comunicação WebSocket**
 
@@ -15,28 +15,28 @@ Documentação detalhada de todas as mensagens WebSocket do sistema:
 
 #### 🔐 **Autenticação**
 
-- [**Login**](fluxograma-login.md) - Processo de autenticação de usuário
-- [**Register**](fluxograma-register.md) - Criação de nova conta
-- [**Logout**](fluxograma-logout.md) - Desconexão e limpeza de sessão
+- [**Login**](docs/fluxograma-login.md) - Processo de autenticação de usuário
+- [**Register**](docs/fluxograma-register.md) - Criação de nova conta
+- [**Logout**](docs/fluxograma-logout.md) - Desconexão e limpeza de sessão
 
 #### 💬 **Mensagens**
 
-- [**Get Messages**](fluxograma-get-messages.md) - Carregamento de mensagens de uma conversa
-- [**Send Message**](fluxograma-send-message.md) - Envio com broadcast em tempo real
+- [**Get Messages**](docs/fluxograma-get-messages.md) - Carregamento de mensagens de uma conversa
+- [**Send Message**](docs/fluxograma-send-message.md) - Envio com broadcast em tempo real
 
 #### 👥 **Conversas**
 
-- [**Create DM**](fluxograma-create-dm.md) - Conversa direta entre usuários
-- [**Create Group**](fluxograma-create-group.md) - Grupo com múltiplos membros
-- [**Get User Chats**](fluxograma-get-user-chats.md) - Lista todas as conversas do usuário
+- [**Create DM**](docs/fluxograma-create-dm.md) - Conversa direta entre usuários
+- [**Create Group**](docs/fluxograma-create-group.md) - Grupo com múltiplos membros
+- [**Get User Chats**](docs/fluxograma-get-user-chats.md) - Lista todas as conversas do usuário
 
 #### 🔍 **Busca**
 
-- [**Search Users**](fluxograma-search-users.md) - Busca de usuários por nome
+- [**Search Users**](docs/fluxograma-search-users.md) - Busca de usuários por nome
 
 ### 📋 **Índice Completo**
 
-- [**FLUXOGRAMAS.md**](FLUXOGRAMAS.md) - Índice organizado de todos os fluxogramas
+- [**FLUXOGRAMAS.md**](docs/FLUXOGRAMAS.md) - Índice organizado de todos os fluxogramas
 
 ## 🏗️ **Arquitetura do Sistema**
 
@@ -63,8 +63,8 @@ Documentação detalhada de todas as mensagens WebSocket do sistema:
 
 ## 🚀 **Como Usar**
 
-1. **Para executar o projeto**: Consulte [COMO_EXECUTAR.md](COMO_EXECUTAR.md)
-2. **Para entender o backend**: Leia [GUIA_SOCKET_BACKEND.md](GUIA_SOCKET_BACKEND.md)
+1. **Para executar o projeto**: Consulte [docs/COMO_EXECUTAR.md](docs/COMO_EXECUTAR.md)
+2. **Para entender o backend**: Leia [docs/GUIA_SOCKET_BACKEND.md](docs/GUIA_SOCKET_BACKEND.md)
 3. **Para ver fluxos específicos**: Navegue pelos fluxogramas correspondentes
 
 ## 📊 **Estrutura JSON das Mensagens**
