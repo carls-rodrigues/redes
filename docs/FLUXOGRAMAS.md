@@ -14,6 +14,7 @@ Este documento contém fluxogramas detalhados das principais features do sistema
 
 - [**Get Messages**](fluxograma-get-messages.md) - Carregamento de mensagens de uma conversa
 - [**Send Message**](fluxograma-send-message.md) - Envio de mensagens com broadcast em tempo real
+- [**Read Receipts**](fluxograma-read-receipts.md) - Confirmações de leitura das mensagens
 
 ### 👥 Conversas
 
