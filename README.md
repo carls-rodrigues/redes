@@ -7,7 +7,6 @@ Esta pasta contém toda a documentação técnica e de usuário do sistema de ch
 ### 🎯 **Guias de Uso**
 
 - [**COMO_EXECUTAR.md**](docs/COMO_EXECUTAR.md) - Guia completo para executar o projeto
-- [**GUIA_SOCKET_BACKEND.md**](docs/GUIA_SOCKET_BACKEND.md) - Documentação técnica do backend WebSocket
 
 ### 🔄 **Fluxogramas - Comunicação WebSocket**
 
@@ -64,8 +63,7 @@ Documentação detalhada de todas as mensagens WebSocket do sistema:
 ## 🚀 **Como Usar**
 
 1. **Para executar o projeto**: Consulte [docs/COMO_EXECUTAR.md](docs/COMO_EXECUTAR.md)
-2. **Para entender o backend**: Leia [docs/GUIA_SOCKET_BACKEND.md](docs/GUIA_SOCKET_BACKEND.md)
-3. **Para ver fluxos específicos**: Navegue pelos fluxogramas correspondentes
+2. **Para ver fluxos específicos**: Navegue pelos fluxogramas correspondentes
 
 ## 📊 **Estrutura JSON das Mensagens**
 
