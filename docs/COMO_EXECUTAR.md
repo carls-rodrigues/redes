@@ -7,12 +7,10 @@ Para executar ambos os servidores (Backend + Frontend) simultaneamente, use um d
 ### Linux/macOS
 
 - **`./run-servers.sh`** - Script completo (recomendado)
-- **`./start-chat.sh`** - Script simples e rápido
 
 ### Windows
 
 - **`run-servers.bat`** - Script completo (recomendado)
-- **`start-chat.bat`** - Script simples e rápido
 
 ### Docker (se disponível)
 
@@ -34,17 +32,6 @@ Este script:
 - ✅ Mostra logs detalhados
 - ✅ Para ambos os servidores com Ctrl+C
 
-## Opção 2: Script Simples
-
-```bash
-./start-chat.sh
-```
-
-Este script:
-
-- ✅ Inicia ambos os servidores rapidamente
-- ✅ Para ambos os servidores com Ctrl+C
-
 ## URLs de Acesso
 
 Os servidores aceitarão conexões de qualquer computador na rede:
@@ -57,7 +44,7 @@ Os servidores aceitarão conexões de qualquer computador na rede:
 ## Como Usar na Apresentação
 
 1. Abra um terminal
-2. Execute: `./run-servers.sh` ou `./start-chat.sh`
+2. Execute: `./run-servers.sh`
 3. **Aguarde o IP da máquina aparecer na tela**
 4. Anuncie o IP para os colegas: "Acessem http://[IP]:3000"
 5. Abra o navegador em `http://[IP-DA-MÁQUINA]:3000`
