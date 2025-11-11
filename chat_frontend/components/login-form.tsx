@@ -50,10 +50,10 @@ export function LoginForm({
         localStorage.setItem('session', JSON.stringify(lastMessage.session));
         setIsLoading(false);
         router.push('/');
-      } else if ((lastMessage.type === 'login' || (lastMessage.user && lastMessage.session)) && lastMessage.status === 'error') {
+      } else if (lastMessage.status === 'error' && lastMessage.request_id) {
         console.log('Login falhou:', lastMessage.message);
         // Login falhou
-        setError(lastMessage.message || 'Login failed');
+        setError(lastMessage.message || 'Login falhou');
         setIsLoading(false);
       }
     }
@@ -64,12 +64,13 @@ export function LoginForm({
     setError("");
 
     if (!username || !password) {
-      setError('Please fill all fields');
+      setError('Por favor, preencha todos os campos');
       return;
     }
 
     if (!isConnected) {
-      setError('Not connected to server');
+      setError('Não conectado ao servidor');
+      setIsLoading(false);
       return;
     }
 

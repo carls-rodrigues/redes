@@ -35,7 +35,7 @@ export function RegisterForm({ ...props }: React.ComponentProps<typeof Card>) {
   useEffect(() => {
     if (lastMessage) {
       console.log('Formulário de registro recebeu mensagem:', lastMessage);
-      // Verificar resposta de registro - seja por tipo ou verificando status
+            // Verificar resposta de registro - seja por tipo ou verificando status
       if ((lastMessage.type === 'register' || lastMessage.status) && lastMessage.status === 'ok') {
         console.log('Registro bem-sucedido');
         // Registro bem-sucedido
@@ -46,10 +46,10 @@ export function RegisterForm({ ...props }: React.ComponentProps<typeof Card>) {
         setTimeout(() => {
           router.push('./login');
         }, 2000);
-      } else if ((lastMessage.type === 'register' || lastMessage.status) && lastMessage.status === 'error') {
+      } else if (lastMessage.status === 'error' && lastMessage.request_id) {
         console.log('Registro falhou:', lastMessage.message);
         // Registro falhou
-        setError(lastMessage.message || 'Registration failed');
+        setError(lastMessage.message || 'Registro falhou');
         setSuccess("");
         setIsLoading(false);
       }
@@ -62,17 +62,18 @@ export function RegisterForm({ ...props }: React.ComponentProps<typeof Card>) {
     setSuccess("");
 
     if (!username || !password) {
-      setError('Please fill all fields');
+      setError('Por favor, preencha todos os campos');
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError('As senhas não coincidem');
       return;
     }
 
     if (!isConnected) {
-      setError('Not connected to server');
+      setError('Não conectado ao servidor');
+      setIsLoading(false);
       return;
     }
 

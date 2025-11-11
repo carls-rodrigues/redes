@@ -228,7 +228,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
             type: message.type,
             request_id: requestId,
             status: 'error',
-            message: 'Request timed out'
+            message: 'Solicitação expirou'
           });
         }
       }, config.current.requestTimeout);
