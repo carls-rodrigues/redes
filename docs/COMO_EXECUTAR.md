@@ -12,11 +12,6 @@ Para executar ambos os servidores (Backend + Frontend) simultaneamente, use um d
 
 - **`run-servers.bat`** - Script completo (recomendado)
 
-### Docker (se disponível)
-
-- **`./deploy-college.sh`** (Linux/macOS)
-- **`deploy-college.bat`** (Windows)
-
 ## Opção 1: Script Completo (Recomendado)
 
 ```bash
